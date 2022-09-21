@@ -62,6 +62,9 @@ def parse_args(args):
     occlusion_parser = subparsers.add_parser('occlusion')
     occlusion_parser.add_argument('occlusion_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed).')
 
+    screwdataset_parser = subparsers.add_parser('screwdataset')
+    screwdataset_parser.add_argument('screwdataset_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed).')
+
     parser.add_argument('--rotation-representation', help = 'Which representation of the rotation should be used. Choose from "axis_angle", "rotation_matrix" and "quaternion"', default = 'axis_angle')
 
     parser.add_argument('--weights', help = 'File containing weights to init the model parameter')
@@ -168,6 +171,20 @@ def create_generators(args):
         
         generator = OcclusionGenerator(
             args.occlusion_path,
+            train = False,
+            shuffle_dataset = False,
+            shuffle_groups = False,
+            rotation_representation = args.rotation_representation,
+            use_colorspace_augmentation = False,
+            use_6DoF_augmentation = False,
+            **common_args
+        )
+
+    elif args.dataset_type == 'screwdataset':
+        from generators.screwdataset import ScrewDatasetGenerator
+        
+        generator = ScrewDatasetGenerator(
+            args.screwdataset_path,
             train = False,
             shuffle_dataset = False,
             shuffle_groups = False,

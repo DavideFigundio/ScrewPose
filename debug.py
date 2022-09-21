@@ -38,6 +38,7 @@ import cv2
 
 from generators.linemod import LineModGenerator
 from generators.occlusion import OcclusionGenerator
+from generators.screwdataset import ScrewDatasetGenerator
 from utils.visualization import draw_annotations, draw_boxes
 from utils.anchors import anchors_for_shape, compute_gt_annotations
 
@@ -55,6 +56,9 @@ def parse_args(args):
 
     occlusion_parser = subparsers.add_parser('occlusion')
     occlusion_parser.add_argument('occlusion_path', help = 'Path to dataset directory (ie. /tmp/occlusion).')
+
+    screwdataset_parser = subparsers.add_parser('screwdataset')
+    screwdataset_parser.add_argument('screwdataset_path', help = 'Path to dataset directory (ie. /tmp/occlusion).')
     
     
     parser.add_argument('--rotation-representation', help = 'Which representation of the rotation should be used. Choose from "axis_angle", "rotation_matrix" and "quaternion"', default = 'axis_angle')
@@ -119,6 +123,17 @@ def create_generator(args):
             rotation_representation = args.rotation_representation,
             use_colorspace_augmentation = not args.no_color_augmentation,
             use_6DoF_augmentation = not args.no_6dof_augmentation,
+            phi = args.phi,
+        )
+    elif args.dataset_type == 'screwdataset':
+        generator = ScrewDatasetGenerator(
+            args.screwdataset_path,
+            train = True,
+            shuffle_dataset = False,
+            shuffle_groups = False,
+            rotation_representation = args.rotation_representation,
+            use_colorspace_augmentation = False,
+            use_6DoF_augmentation = False,
             phi = args.phi,
         )
     else:

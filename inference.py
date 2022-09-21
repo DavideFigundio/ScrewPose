@@ -45,21 +45,23 @@ def main():
     allow_gpu_growth_memory()
 
     #input parameter
-    path_to_images = "/Datasets/Linemod_preprocessed/data/02/rgb/"
+    path_to_images = "./inferencing/"
     image_extension = ".png"
     phi = 0
-    path_to_weights = "./weights/phi_0_occlusion_best_ADD(-S).h5"
-    save_path = "./predictions/occlusion/" #where to save the images or None if the images should be displayed and not saved
+    path_to_weights = "./checkpoints/103_epochs/screwdataset/phi_0_screwdataset_best_ADD-S.h5"
+    save_path = "./inferencing/results/" #where to save the images or None if the images should be displayed and not saved
     # save_path = None
-    class_to_name = {0: "ape", 1: "can", 2: "cat", 3: "driller", 4: "duck", 5: "eggbox", 6: "glue", 7: "holepuncher"} #Occlusion
-    #class_to_name = {0: "driller"} #Linemod use a single class with a name of the Linemod objects
+    #class_to_name = {0: "ape", 1: "can", 2: "cat", 3: "driller", 4: "duck", 5: "eggbox", 6: "glue", 7: "holepuncher"} #Occlusion
+    class_to_name = {0: "screw"} #Linemod use a single class with a name of the Linemod objects
     score_threshold = 0.5
     translation_scale_norm = 1000.0
     draw_bbox_2d = False
     draw_name = False
     #for the linemod and occlusion trained models take this camera matrix and these 3d models. in case you trained a model on a custom dataset you need to take the camera matrix and 3d cuboids from your custom dataset.
-    camera_matrix = get_linemod_camera_matrix()
-    name_to_3d_bboxes = get_linemod_3d_bboxes()
+    #camera_matrix = get_linemod_camera_matrix()
+    #name_to_3d_bboxes = get_linemod_3d_bboxes()
+    camera_matrix = get_screwdataset_camera_matrix()
+    name_to_3d_bboxes = get_screwdataset_3d_bboxes()
     class_to_3d_bboxes = {class_idx: name_to_3d_bboxes[name] for class_idx, name in class_to_name.items()} 
     
     num_classes = len(class_to_name)
@@ -150,6 +152,26 @@ def get_linemod_3d_bboxes():
                             "iron":         {"diameter": 278.07811733, "min_x": -129.11300000, "min_y": -59.24100000, "min_z": -70.56620000, "size_x": 258.22600000, "size_y": 118.48210000, "size_z": 141.13240000},
                             "lamp":         {"diameter": 282.60129399, "min_x": -101.57300000, "min_y": -58.87630000, "min_z": -106.55800000, "size_x": 203.14600000, "size_y": 117.75250000, "size_z": 213.11600000},
                             "phone":        {"diameter": 212.35825148, "min_x": -46.95910000, "min_y": -73.71670000, "min_z": -92.37370000, "size_x": 93.91810000, "size_y": 147.43340000, "size_z": 184.74740000}}
+        
+    name_to_3d_bboxes = {name: convert_bbox_3d(model_info) for name, model_info in name_to_model_info.items()}
+    
+    return name_to_3d_bboxes
+
+def get_screwdataset_camera_matrix():
+    """
+    Returns:
+        The screwdataset 3x3 camera matrix
+
+    """
+    return np.array([[633.96, 0., 320], [0., 633.96, 240], [0., 0., 1.]], dtype = np.float32)
+
+def get_screwdataset_3d_bboxes():
+    """
+    Returns:
+        name_to_3d_bboxes: Dictionary with the Linemod and Occlusion 3D model names as keys and the cuboids as values
+
+    """
+    name_to_model_info = {"screw": {'diameter': 37.2738, 'min_x': -5.7735, 'min_y': -5.0, 'min_z': -17.0, 'size_x': 11.547, 'size_y': 10.0, 'size_z': 34.0}}
         
     name_to_3d_bboxes = {name: convert_bbox_3d(model_info) for name, model_info in name_to_model_info.items()}
     

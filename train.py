@@ -72,6 +72,9 @@ def parse_args(args):
     screwdataset_parser = subparsers.add_parser('screwdataset')
     screwdataset_parser.add_argument('screwdataset_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed/).')
 
+    assembly_parser = subparsers.add_parser('assembly')
+    assembly_parser.add_argument('assembly_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed/).')
+
     parser.add_argument('--rotation-representation', help = 'Which representation of the rotation should be used. Choose from "axis_angle", "rotation_matrix" and "quaternion"', default = 'axis_angle')    
 
     parser.add_argument('--weights', help = 'File containing weights to init the model parameter')
@@ -263,6 +266,17 @@ def create_callbacks(training_model, prediction_model, validation_generator, arg
             
         metric_to_monitor = "ADD-S"
         mode = "max"
+    elif args.dataset_type == "assembly":
+        snapshot_path = os.path.join(args.snapshot_path, "assembly")
+        if args.validation_image_save_path:
+            save_path = os.path.join(args.validation_image_save_path, "assembly")
+        else:
+            save_path = args.validation_image_save_path
+        if args.tensorboard_dir:
+            tensorboard_dir = os.path.join(args.tensorboard_dir, "assembly")
+            
+        metric_to_monitor = "ADD(-S)"
+        mode = "max"
 
     else:
         snapshot_path = args.snapshot_path
@@ -373,7 +387,7 @@ def create_generators(args):
             use_6DoF_augmentation = False,
             **common_args
         )
-    if args.dataset_type == 'screwdataset':
+    elif args.dataset_type == 'screwdataset':
         from generators.screwdataset import ScrewDatasetGenerator
         train_generator = ScrewDatasetGenerator(
             args.screwdataset_path,
@@ -385,6 +399,26 @@ def create_generators(args):
 
         validation_generator = ScrewDatasetGenerator(
             args.screwdataset_path,
+            train = False,
+            shuffle_dataset = False,
+            shuffle_groups = False,
+            rotation_representation = args.rotation_representation,
+            use_colorspace_augmentation = False,
+            use_6DoF_augmentation = False,
+            **common_args
+        )
+    elif args.dataset_type == 'assembly':
+        from generators.assembly import AssemblyGenerator
+        train_generator = AssemblyGenerator(
+            args.assembly_path,
+            rotation_representation = args.rotation_representation,
+            use_colorspace_augmentation = False,
+            use_6DoF_augmentation = True,
+            **common_args
+        )
+
+        validation_generator = AssemblyGenerator(
+            args.assembly_path,
             train = False,
             shuffle_dataset = False,
             shuffle_groups = False,

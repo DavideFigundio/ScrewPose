@@ -1,11 +1,12 @@
 '''
 Script for converting the output of a Unity Perception synthetic dataset to a format that is useable
-with EfficentPose for training a linemod model.
+with EfficentPose for training an occlusion linemod model.
 '''
 
 from math import ceil
 import yaml
 import json
+import os
 
 def convertQuaternionToMatrix(qx, qy, qz, qw):
     qw = -qw
@@ -24,9 +25,9 @@ def convertQuaternionToMatrix(qx, qy, qz, qw):
 
     return R
 
-datalocationpath = './datasets/ScrewDataset/data/01/'
+datalocationpath = './datasets/ScrewDataset/data/00/'
 numberOfSamples = 10000
-trainamount = 9500
+trainamount = 9000
 samplesPerCaptureFile = 150
 totalCaptures = ceil(numberOfSamples/samplesPerCaptureFile)
 
@@ -49,17 +50,31 @@ with open(datalocationpath + 'gt.yml', 'w') as ymlfile:
             for i in range(0, len(jsonData['captures'])):
                 for annotation in jsonData['captures'][i]['annotations']:
                     if annotation['id'] == 'bounding box':
-                        bboxdata = annotation['values'][0]
-                        bbox = [bboxdata['x'], bboxdata['y'], bboxdata['width'], bboxdata['height']]
+
+                        for bboxdata in annotation['values']:
+                            if bboxdata['label_name'] == "Bolt":
+                                screwbbox = [bboxdata['x'], bboxdata['y'], bboxdata['width'], bboxdata['height']]
+
+                            elif bboxdata['label_name'] == "Assembly":
+                                assemblybbox = [bboxdata['x'], bboxdata['y'], bboxdata['width'], bboxdata['height']]
                     
                     elif annotation['id'] == 'bounding box 3D':
-                        translationdata = annotation['values'][0]['translation']
-                        translation = [1000*translationdata['x'], -1000*translationdata['y'], 1000*translationdata['z']]
 
-                        rotationdata = annotation['values'][0]['rotation']
-                        rotation = convertQuaternionToMatrix(rotationdata['x'], rotationdata['y'], rotationdata['z'], rotationdata['w'])
+                        for bboxdata in annotation['values']:
+                            if bboxdata['label_name'] == "Bolt":
+                                translationdata = bboxdata['translation']
+                                screwtranslation = [1000*translationdata['x'], -1000*translationdata['y'], 1000*translationdata['z']]
 
-                captureData = {j:[{'cam_R_m2c':rotation, 'cam_t_m2c':translation, 'obj_bb':bbox, 'obj_id':1}]}
+                                rotationdata = bboxdata['rotation']
+                                screwrotation = convertQuaternionToMatrix(rotationdata['x'], rotationdata['y'], rotationdata['z'], rotationdata['w'])
+                            elif bboxdata['label_name'] == "Assembly":
+                                translationdata = bboxdata['translation']
+                                assemblytranslation = [1000*translationdata['x'], -1000*translationdata['y'], 1000*translationdata['z']]
+
+                                rotationdata = bboxdata['rotation']
+                                assemblyrotation = convertQuaternionToMatrix(rotationdata['x'], rotationdata['y'], rotationdata['z'], rotationdata['w'])    
+
+                captureData = {j:[{'cam_R_m2c':screwrotation, 'cam_t_m2c':screwtranslation, 'obj_bb':screwbbox, 'obj_id':1}, {'cam_R_m2c':assemblyrotation, 'cam_t_m2c':assemblytranslation, 'obj_bb':assemblybbox, 'obj_id':2}]}
                 yaml.dump(captureData, ymlfile)
                 j += 1
 
@@ -97,15 +112,15 @@ print('Renaming training images...')
 for i in range(0, numberOfSamples):
     if i<10:
         os.rename(datalocationpath + "rgb/rgb_" + str(i + 2) + ".png", datalocationpath + 'rgb/000' + str(i) + '.png')
-        os.rename(datalocationpath + "mask/segmentation_" + str(i + 2) + ".png", datalocationpath + 'mask/000' + str(i) + '.png')
+        os.rename(datalocationpath + "merged_masks/segmentation_" + str(i + 2) + ".png", datalocationpath + 'merged_masks/000' + str(i) + '.png')
     elif i<100:
         os.rename(datalocationpath + "rgb/rgb_" + str(i + 2) + ".png", datalocationpath + 'rgb/00' + str(i) + '.png')
-        os.rename(datalocationpath + "mask/segmentation_" + str(i + 2) + ".png", datalocationpath + 'mask/00' + str(i) + '.png')
+        os.rename(datalocationpath + "merged_masks/segmentation_" + str(i + 2) + ".png", datalocationpath + 'merged_masks/00' + str(i) + '.png')
     elif i<1000:
         os.rename(datalocationpath + "rgb/rgb_" + str(i + 2) + ".png", datalocationpath + 'rgb/0' + str(i) + '.png')
-        os.rename(datalocationpath + "mask/segmentation_" + str(i + 2) + ".png", datalocationpath + 'mask/0' + str(i) + '.png')     
+        os.rename(datalocationpath + "merged_masks/segmentation_" + str(i + 2) + ".png", datalocationpath + 'merged_masks/0' + str(i) + '.png')     
     else:
         os.rename(datalocationpath + "rgb/rgb_" + str(i + 2) + ".png", datalocationpath + 'rgb/' + str(i) + '.png')
-        os.rename(datalocationpath + "mask/segmentation_" + str(i + 2) + ".png", datalocationpath + 'mask/' + str(i) + '.png')
+        os.rename(datalocationpath + "merged_masks/segmentation_" + str(i + 2) + ".png", datalocationpath + 'merged_masks/' + str(i) + '.png')
 '''
 print("Done!")

@@ -39,6 +39,7 @@ import cv2
 from generators.linemod import LineModGenerator
 from generators.occlusion import OcclusionGenerator
 from generators.screwdataset import ScrewDatasetGenerator
+from generators.assembly import AssemblyGenerator
 from utils.visualization import draw_annotations, draw_boxes
 from utils.anchors import anchors_for_shape, compute_gt_annotations
 
@@ -59,6 +60,9 @@ def parse_args(args):
 
     screwdataset_parser = subparsers.add_parser('screwdataset')
     screwdataset_parser.add_argument('screwdataset_path', help = 'Path to dataset directory (ie. /tmp/occlusion).')
+
+    screwdataset_parser = subparsers.add_parser('assembly')
+    screwdataset_parser.add_argument('assembly_path', help = 'Path to dataset directory (ie. /tmp/occlusion).')
     
     
     parser.add_argument('--rotation-representation', help = 'Which representation of the rotation should be used. Choose from "axis_angle", "rotation_matrix" and "quaternion"', default = 'axis_angle')
@@ -133,7 +137,19 @@ def create_generator(args):
             shuffle_groups = False,
             rotation_representation = args.rotation_representation,
             use_colorspace_augmentation = False,
-            use_6DoF_augmentation = False,
+            use_6DoF_augmentation = True,
+            phi = args.phi,
+        )
+
+    elif args.dataset_type == 'assembly':
+        generator = AssemblyGenerator(
+            args.assembly_path,
+            train = True,
+            shuffle_dataset = False,
+            shuffle_groups = False,
+            rotation_representation = args.rotation_representation,
+            use_colorspace_augmentation = False,
+            use_6DoF_augmentation = True,
             phi = args.phi,
         )
     else:
@@ -172,7 +188,8 @@ def run(generator, args):
                     draw_boxes(image, anchors[0][positive_indices], (255, 255, 0), thickness=1)
     
                 # draw annotations on the image
-                if args.annotations:
+                #if args.annotations:
+                if True:
                     draw_annotations(image,
                                      annotations,
                                      class_to_bbox_3D = generator.get_bbox_3d_dict(),

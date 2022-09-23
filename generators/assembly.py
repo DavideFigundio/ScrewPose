@@ -96,7 +96,7 @@ class AssemblyGenerator(Generator):
         
         #shuffle dataset
         if self.shuffle_dataset:
-            self.image_paths, self.mask_paths, self.depth_paths, self.annotations, self.infos = self.shuffle_sequences(self.image_paths, self.mask_paths, self.depth_paths, self.annotations, self.infos)
+            self.image_paths, self.mask_paths, self.annotations, self.infos = self.shuffle_sequences(self.image_paths, self.mask_paths, self.annotations, self.infos)
         
         #init base class
         Generator.__init__(self, **kwargs)
@@ -343,16 +343,16 @@ class AssemblyGenerator(Generator):
         return self.translation_parameter
             
         
-    def shuffle_sequences(self, image_paths, mask_paths, depth_paths, annotations, infos):
+    def shuffle_sequences(self, image_paths, mask_paths, annotations, infos):
         """
        Takes sequences (e.g. lists) containing the dataset and shuffle them so that the corresponding entries still match
     
         """
-        concatenated = list(zip(image_paths, mask_paths, depth_paths, annotations, infos))
+        concatenated = list(zip(image_paths, mask_paths, annotations, infos))
         random.shuffle(concatenated)
-        image_paths, mask_paths, depth_paths, annotations, infos = zip(*concatenated)
+        image_paths, mask_paths, annotations, infos = zip(*concatenated)
         
-        return image_paths, mask_paths, depth_paths, annotations, infos
+        return image_paths, mask_paths, annotations, infos
     
     
     def load_model_ply(self, path_to_ply_file):
@@ -622,7 +622,7 @@ class AssemblyGenerator(Generator):
 
 if __name__ == "__main__":
     #test screwdataset generator
-    train_gen = OcclusionGenerator("/datasets/ScrewDataset/", use_6DoF_augmentation = True, use_colorspace_augmentation = True)
+    train_gen = AssemblyGenerator("/datasets/ScrewDataset/", use_6DoF_augmentation = True, use_colorspace_augmentation = True)
     #test_gen = OcclusionGenerator("/Datasets/Linemod_preprocessed/", train = False, shuffle_dataset = False, shuffle_groups = False)
     
     for i in range(100):

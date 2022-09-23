@@ -62,6 +62,9 @@ def parse_args(args):
     occlusion_parser = subparsers.add_parser('occlusion')
     occlusion_parser.add_argument('occlusion_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed).')
 
+    assembly_parser = subparsers.add_parser('assembly')
+    assembly_parser.add_argument('assembly_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed).')
+
     screwdataset_parser = subparsers.add_parser('screwdataset')
     screwdataset_parser.add_argument('screwdataset_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed).')
 
@@ -179,12 +182,24 @@ def create_generators(args):
             use_6DoF_augmentation = False,
             **common_args
         )
-
     elif args.dataset_type == 'screwdataset':
         from generators.screwdataset import ScrewDatasetGenerator
         
         generator = ScrewDatasetGenerator(
             args.screwdataset_path,
+            train = False,
+            shuffle_dataset = False,
+            shuffle_groups = False,
+            rotation_representation = args.rotation_representation,
+            use_colorspace_augmentation = False,
+            use_6DoF_augmentation = False,
+            **common_args
+        )
+    elif args.dataset_type == 'assembly':
+        from generators.assembly import AssemblyGenerator
+        
+        generator = AssemblyGenerator(
+            args.assembly_path,
             train = False,
             shuffle_dataset = False,
             shuffle_groups = False,

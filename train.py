@@ -87,7 +87,7 @@ def parse_args(args):
     parser.add_argument('--no-6dof-augmentation', help = 'Do not use 6DoF augmentation', action = 'store_false')
     parser.add_argument('--phi', help = 'Hyper parameter phi', default = 0, type = int, choices = (0, 1, 2, 3, 4, 5, 6))
     parser.add_argument('--gpu', help = 'Id of the GPU to use (as reported by nvidia-smi).')
-    parser.add_argument('--epochs', help = 'Number of epochs to train.', type = int, default = 49)
+    parser.add_argument('--epochs', help = 'Number of epochs to train.', type = int, default = 50)
     parser.add_argument('--steps', help = 'Number of steps per epoch.', type = int, default = 1500)
     parser.add_argument('--snapshot-path', help = 'Path to store snapshots of models during training', default = os.path.join("checkpoints", date_and_time))
     parser.add_argument('--tensorboard-dir', help = 'Log directory for Tensorboard output', default = os.path.join("logs", date_and_time))

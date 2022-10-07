@@ -82,7 +82,7 @@ def parse_args(args):
     parser.add_argument('--no-freeze-bn', help = 'Do not freeze training of BatchNormalization layers.', action = 'store_true')
 
     parser.add_argument('--batch-size', help = 'Size of the batches.', default = 6, type = int)
-    parser.add_argument('--lr', help = 'Learning rate', default = 1e-4, type = float)
+    parser.add_argument('--lr', help = 'Learning rate', default = 1e-3, type = float)
     parser.add_argument('--no-color-augmentation', help = 'Do not use colorspace augmentation', action = 'store_true')
     parser.add_argument('--no-6dof-augmentation', help = 'Do not use 6DoF augmentation', action = 'store_false')
     parser.add_argument('--phi', help = 'Hyper parameter phi', default = 0, type = int, choices = (0, 1, 2, 3, 4, 5, 6))
@@ -311,10 +311,11 @@ def create_callbacks(training_model, prediction_model, validation_generator, arg
         os.makedirs(snapshot_path, exist_ok = True)
         checkpoint = keras.callbacks.ModelCheckpoint(os.path.join(snapshot_path, 'phi_{phi}_{dataset_type}_best_{metric}.h5'.format(phi = str(args.phi), metric = metric_to_monitor, dataset_type = args.dataset_type)),
                                                      verbose = 1,
-                                                     #save_weights_only = True,
-                                                     save_best_only = True,
+                                                     save_weights_only = False,
+                                                     save_best_only = False,
                                                      monitor = metric_to_monitor,
-                                                     mode = mode)
+                                                     mode = mode,
+                                                     save_freq = 10)
         callbacks.append(checkpoint)
 
     callbacks.append(keras.callbacks.ReduceLROnPlateau(

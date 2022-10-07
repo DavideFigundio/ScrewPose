@@ -7,6 +7,97 @@ from math import ceil
 import yaml
 import json
 import os
+from os.path import join
+
+def main():
+    datalocationpath = './datasets/ScrewDataset/data/00/'
+    numberOfSamples = 10000
+    trainamount = 9000
+    samplesPerCaptureFile = 150
+
+    Cam_intrinsic = [640.0, 0., 640.0, 0., 640.0, 360.0, 0., 0., 1.]
+
+    deletePreviousGT(datalocationpath)
+    
+    createLabels(datalocationpath, samplesPerCaptureFile, numberOfSamples, Cam_intrinsic)
+
+    createSplits(datalocationpath, trainamount, numberOfSamples)
+
+    renameImages(datalocationpath, numberOfSamples)
+
+    print("Done!")
+
+def createLabels(datalocationpath, samplesPerCaptureFile, numberOfSamples, Cam_intrinsic):
+    totalCaptures = ceil(numberOfSamples/samplesPerCaptureFile)
+    print("Creating ground truth labels...")
+    j=0
+    with open(join(datalocationpath, 'gt.yml'), 'w') as ymlfile:
+        for i in range(0, totalCaptures):
+            captureFileNumber = ''
+            if i<10:
+                captureFileNumber = '00' + str(i)
+            elif i<100:
+                captureFileNumber = '0' + str(i)
+            else:
+                captureFileNumber = str(i)
+
+            with open(join(datalocationpath, "unitydata/captures_" + captureFileNumber + ".json"), 'r') as file:
+                jsonData = json.load(file)    
+
+                for i in range(0, len(jsonData['captures'])):
+
+                    screw_present = False
+                    assembly_present = False
+
+                    for annotation in jsonData['captures'][i]['annotations']:
+
+                        if annotation['id'] == 'bounding box':
+
+                            for bboxdata in annotation['values']:
+                                if bboxdata['label_name'] == "Bolt":
+                                    screwbbox = [bboxdata['x'], bboxdata['y'], bboxdata['width'], bboxdata['height']]
+                                    screw_present = True
+
+                                elif bboxdata['label_name'] == "Assembly":
+                                    assemblybbox = [bboxdata['x'], bboxdata['y'], bboxdata['width'], bboxdata['height']]
+                                    assembly_present = True
+                    
+                        elif annotation['id'] == 'bounding box 3D':
+
+                            for bboxdata in annotation['values']:
+                                if bboxdata['label_name'] == "Bolt":
+                                    translationdata = bboxdata['translation']
+                                    screwtranslation = [1000*translationdata['x'], -1000*translationdata['y'], 1000*translationdata['z']]
+
+                                    rotationdata = bboxdata['rotation']
+                                    screwrotation = convertQuaternionToMatrix(rotationdata['x'], rotationdata['y'], rotationdata['z'], rotationdata['w'])
+                                elif bboxdata['label_name'] == "Assembly":
+                                    translationdata = bboxdata['translation']
+                                    assemblytranslation = [1000*translationdata['x'], -1000*translationdata['y'], 1000*translationdata['z']]
+
+                                    rotationdata = bboxdata['rotation']
+                                    assemblyrotation = convertQuaternionToMatrix(rotationdata['x'], rotationdata['y'], rotationdata['z'], rotationdata['w'])    
+                    
+                    datalist = []
+
+                    if screw_present:
+                        datalist.append({'cam_R_m2c':screwrotation, 'cam_t_m2c':screwtranslation, 'obj_bb':screwbbox, 'obj_id':1})
+                        with open(join(datalocationpath, "valid_poses/1.txt"), "a") as file:
+                            file.write(str(j) + '\n')
+
+                    if assembly_present:
+                        datalist.append({'cam_R_m2c':assemblyrotation, 'cam_t_m2c':assemblytranslation, 'obj_bb':assemblybbox, 'obj_id':2})
+                        with open(join(datalocationpath, "valid_poses/2.txt"), "a") as file:
+                            file.write(str(j) + '\n')
+        
+                    yaml.dump({j:datalist}, ymlfile)
+                    j += 1
+
+    print("Creating info labels...")
+    with open(datalocationpath + 'info.yml', 'w') as ymlfile:
+        for i in range(0, numberOfSamples):
+            data = {i:{'cam_K':Cam_intrinsic, 'depth_scale':1.0}}
+            yaml.dump(data, ymlfile)
 
 def convertQuaternionToMatrix(qx, qy, qz, qw):
     qw = -qw
@@ -25,102 +116,53 @@ def convertQuaternionToMatrix(qx, qy, qz, qw):
 
     return R
 
-datalocationpath = './datasets/ScrewDataset/data/00/'
-numberOfSamples = 10000
-trainamount = 9000
-samplesPerCaptureFile = 150
-totalCaptures = ceil(numberOfSamples/samplesPerCaptureFile)
+def createSplits(datalocationpath, trainamount, numberOfSamples):
+    print('Creating test/train splits...')
+    with open(datalocationpath + 'train.txt', 'w') as file:
+        for i in range(0, trainamount):
+            if i<10:
+                file.write('000' + str(i) + '\n')
+            elif i<100:
+                file.write('00' + str(i) + '\n')
+            elif i<1000:
+                file.write('0' + str(i) + '\n')
+            else:
+                file.write(str(i)+'\n')
 
-j=0
-Cam_intrinsic = [633.96, 0.0, 320.0, 0.0, 633.96, 240.0, 0.0, 0.0, 1.0]
-print("Creating ground truth labels...")
-with open(datalocationpath + 'gt.yml', 'w') as ymlfile:
-    for i in range(0, totalCaptures):
-        captureFileNumber = ''
-        if i<10:
-            captureFileNumber = '00' + str(i)
-        elif i<100:
-            captureFileNumber = '0' + str(i)
-        else:
-            captureFileNumber = str(i)
+    with open(datalocationpath + 'test.txt', 'w') as file:
+        for i in range(trainamount, numberOfSamples):
+            if i<10:
+                file.write('000' + str(i) + '\n')
+            elif i<100:
+                file.write('00' + str(i) + '\n')
+            elif i<1000:
+                file.write('0' + str(i) + '\n')
+            else:
+                file.write(str(i)+'\n')
 
-        with open(datalocationpath + "unitydata/captures_" + captureFileNumber + ".json", 'r') as file:
-            jsonData = json.load(file)    
-
-            for i in range(0, len(jsonData['captures'])):
-                for annotation in jsonData['captures'][i]['annotations']:
-                    if annotation['id'] == 'bounding box':
-
-                        for bboxdata in annotation['values']:
-                            if bboxdata['label_name'] == "Bolt":
-                                screwbbox = [bboxdata['x'], bboxdata['y'], bboxdata['width'], bboxdata['height']]
-
-                            elif bboxdata['label_name'] == "Assembly":
-                                assemblybbox = [bboxdata['x'], bboxdata['y'], bboxdata['width'], bboxdata['height']]
-                    
-                    elif annotation['id'] == 'bounding box 3D':
-
-                        for bboxdata in annotation['values']:
-                            if bboxdata['label_name'] == "Bolt":
-                                translationdata = bboxdata['translation']
-                                screwtranslation = [1000*translationdata['x'], -1000*translationdata['y'], 1000*translationdata['z']]
-
-                                rotationdata = bboxdata['rotation']
-                                screwrotation = convertQuaternionToMatrix(rotationdata['x'], rotationdata['y'], rotationdata['z'], rotationdata['w'])
-                            elif bboxdata['label_name'] == "Assembly":
-                                translationdata = bboxdata['translation']
-                                assemblytranslation = [1000*translationdata['x'], -1000*translationdata['y'], 1000*translationdata['z']]
-
-                                rotationdata = bboxdata['rotation']
-                                assemblyrotation = convertQuaternionToMatrix(rotationdata['x'], rotationdata['y'], rotationdata['z'], rotationdata['w'])    
-
-                captureData = {j:[{'cam_R_m2c':screwrotation, 'cam_t_m2c':screwtranslation, 'obj_bb':screwbbox, 'obj_id':1}, {'cam_R_m2c':assemblyrotation, 'cam_t_m2c':assemblytranslation, 'obj_bb':assemblybbox, 'obj_id':2}]}
-                yaml.dump(captureData, ymlfile)
-                j += 1
-
-print("Creating info labels...")
-with open(datalocationpath + 'info.yml', 'w') as ymlfile:
+def renameImages(datalocationpath, numberOfSamples):
+    print('Renaming training images...')
     for i in range(0, numberOfSamples):
-        data = {i:{'cam_K':Cam_intrinsic, 'depth_scale':1.0}}
-        yaml.dump(data, ymlfile)
-
-print('Creating test/train splits...')
-with open(datalocationpath + 'train.txt', 'w') as file:
-    for i in range(0, trainamount):
         if i<10:
-            file.write('000' + str(i) + '\n')
+            os.rename(datalocationpath + "rgb/rgb_" + str(i + 2) + ".png", datalocationpath + 'rgb/000' + str(i) + '.png')
+            os.rename(datalocationpath + "merged_masks/segmentation_" + str(i + 2) + ".png", datalocationpath + 'merged_masks/000' + str(i) + '.png')
         elif i<100:
-            file.write('00' + str(i) + '\n')
+            os.rename(datalocationpath + "rgb/rgb_" + str(i + 2) + ".png", datalocationpath + 'rgb/00' + str(i) + '.png')
+            os.rename(datalocationpath + "merged_masks/segmentation_" + str(i + 2) + ".png", datalocationpath + 'merged_masks/00' + str(i) + '.png')
         elif i<1000:
-            file.write('0' + str(i) + '\n')
+            os.rename(datalocationpath + "rgb/rgb_" + str(i + 2) + ".png", datalocationpath + 'rgb/0' + str(i) + '.png')
+            os.rename(datalocationpath + "merged_masks/segmentation_" + str(i + 2) + ".png", datalocationpath + 'merged_masks/0' + str(i) + '.png')     
         else:
-            file.write(str(i)+'\n')
+            os.rename(datalocationpath + "rgb/rgb_" + str(i + 2) + ".png", datalocationpath + 'rgb/' + str(i) + '.png')
+            os.rename(datalocationpath + "merged_masks/segmentation_" + str(i + 2) + ".png", datalocationpath + 'merged_masks/' + str(i) + '.png')
 
-with open(datalocationpath + 'test.txt', 'w') as file:
-    for i in range(trainamount, numberOfSamples):
-        if i<10:
-            file.write('000' + str(i) + '\n')
-        elif i<100:
-            file.write('00' + str(i) + '\n')
-        elif i<1000:
-            file.write('0' + str(i) + '\n')
-        else:
-            file.write(str(i)+'\n')
+def deletePreviousGT(dirpath):
+    os.remove(join(dirpath, "gt.yml"))
+    os.remove(join(dirpath, "info.yml"))
+    os.remove(join(dirpath, "test.txt"))
+    os.remove(join(dirpath, "train.txt"))
+    os.remove(join(dirpath, "valid_poses/1.txt"))
+    os.remove(join(dirpath, "valid_poses/2.txt"))
 
-'''
-print('Renaming training images...')
-for i in range(0, numberOfSamples):
-    if i<10:
-        os.rename(datalocationpath + "rgb/rgb_" + str(i + 2) + ".png", datalocationpath + 'rgb/000' + str(i) + '.png')
-        os.rename(datalocationpath + "merged_masks/segmentation_" + str(i + 2) + ".png", datalocationpath + 'merged_masks/000' + str(i) + '.png')
-    elif i<100:
-        os.rename(datalocationpath + "rgb/rgb_" + str(i + 2) + ".png", datalocationpath + 'rgb/00' + str(i) + '.png')
-        os.rename(datalocationpath + "merged_masks/segmentation_" + str(i + 2) + ".png", datalocationpath + 'merged_masks/00' + str(i) + '.png')
-    elif i<1000:
-        os.rename(datalocationpath + "rgb/rgb_" + str(i + 2) + ".png", datalocationpath + 'rgb/0' + str(i) + '.png')
-        os.rename(datalocationpath + "merged_masks/segmentation_" + str(i + 2) + ".png", datalocationpath + 'merged_masks/0' + str(i) + '.png')     
-    else:
-        os.rename(datalocationpath + "rgb/rgb_" + str(i + 2) + ".png", datalocationpath + 'rgb/' + str(i) + '.png')
-        os.rename(datalocationpath + "merged_masks/segmentation_" + str(i + 2) + ".png", datalocationpath + 'merged_masks/' + str(i) + '.png')
-'''
-print("Done!")
+if __name__ == "__main__":
+    main()

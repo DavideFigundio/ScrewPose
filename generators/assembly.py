@@ -179,15 +179,13 @@ class AssemblyGenerator(Generator):
         
     def parse_valid_examples(self, name_to_class_dict):
         """
-        In occlusion this used to read and parse all files containing the valid poses of all object subdirs in the given valid annotations path
-        For Assembly this is not useful since all poses are valid, being a synthetic dataset. Therefore this function is essentially a placeholder
-        that returns all data for each class.
+        Used to read and parse all files containing the list of valid images for all objects in the given valid annotations path
         Args:
-            name_to_class_dict: Dictionary mapping the Occlusion object name to the EfficientPose class label
+            name_to_class_dict: Dictionary mapping the Assembly object name to the EfficientPose class label
         Returns:
             class_to_valid_examples: Dictionary mapping the object class to a tuple of all valid data examples of this object.
-                                    In Occlusion there are usually all objects annotated even if they are not visible at all.
-                                    So filter those annotations out.
+                                    In Assembly there are sometimes objects that are not visible at all.
+                                    So filter those examples out.
             name_to_valid_examples: The same as class_to_valid_examples but with the class names as keys
         """
         #init dicts with None
@@ -195,10 +193,16 @@ class AssemblyGenerator(Generator):
         name_to_valid_examples = {key: None for key in name_to_class_dict.keys()}
         
         for object_name in name_to_valid_examples.keys():
-
+            
+            filename = str(name_to_class_dict[object_name] + 1) + ".txt"
+            valid_examples_path = os.path.join(os.path.join(self.dataset_path, "00"), "valid_poses")
+            
             valid_object_ids = tuple()
-            for i in range(0, 10000):
-                valid_object_ids += (i, )
+
+            with open(os.path.join(valid_examples_path, filename)) as file:
+                lines = file.readlines()
+                for line in lines:
+                    valid_object_ids += (int(line), )
                 
             name_to_valid_examples[object_name] = valid_object_ids
             class_to_valid_examples[name_to_class_dict[object_name]] = valid_object_ids

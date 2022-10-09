@@ -41,6 +41,7 @@ import argparse
 import time
 import os
 import sys
+import pickle
 
 import tensorflow as tf
 from tensorflow import keras
@@ -52,6 +53,8 @@ from efficientnet import BASE_WEIGHTS_PATH, WEIGHTS_HASHES
 
 from custom_load_weights import custom_load_weights
 
+INITIAL_EPOCH = 1
+DEFAULT_EPOCHS = 2
 
 def parse_args(args):
     """
@@ -82,12 +85,12 @@ def parse_args(args):
     parser.add_argument('--no-freeze-bn', help = 'Do not freeze training of BatchNormalization layers.', action = 'store_true')
 
     parser.add_argument('--batch-size', help = 'Size of the batches.', default = 6, type = int)
-    parser.add_argument('--lr', help = 'Learning rate', default = 1e-3, type = float)
-    parser.add_argument('--no-color-augmentation', help = 'Do not use colorspace augmentation', action = 'store_true')
-    parser.add_argument('--no-6dof-augmentation', help = 'Do not use 6DoF augmentation', action = 'store_false')
+    parser.add_argument('--lr', help = 'Learning rate', default = 1e-4, type = float)
+    parser.add_argument('--no-color-augmentation', help = 'Do not use colorspace augmentation', action = 'store_true', default = False)
+    parser.add_argument('--no-6dof-augmentation', help = 'Do not use 6DoF augmentation', action = 'store_true', default = False)
     parser.add_argument('--phi', help = 'Hyper parameter phi', default = 0, type = int, choices = (0, 1, 2, 3, 4, 5, 6))
     parser.add_argument('--gpu', help = 'Id of the GPU to use (as reported by nvidia-smi).')
-    parser.add_argument('--epochs', help = 'Number of epochs to train.', type = int, default = 50)
+    parser.add_argument('--epochs', help = 'Number of epochs to train.', type = int, default = DEFAULT_EPOCHS)
     parser.add_argument('--steps', help = 'Number of steps per epoch.', type = int, default = 1500)
     parser.add_argument('--snapshot-path', help = 'Path to store snapshots of models during training', default = os.path.join("checkpoints", date_and_time))
     parser.add_argument('--tensorboard-dir', help = 'Log directory for Tensorboard output', default = os.path.join("logs", date_and_time))
@@ -96,6 +99,7 @@ def parse_args(args):
     parser.add_argument('--compute-val-loss', help = 'Compute validation loss during training', dest = 'compute_val_loss', action = 'store_true')
     parser.add_argument('--score-threshold', help = 'score threshold for non max suppresion', type = float, default = 0.5)
     parser.add_argument('--validation-image-save-path', help = 'path where to save the predicted validation images after each epoch', default = None)
+    parser.add_argument('--optimizer', help = 'Path to previously saved optimizer state', default = None)
 
     # Fit generator arguments
     parser.add_argument('--multiprocessing', help = 'Use multiprocessing in fit_generator.', action = 'store_true')
@@ -163,7 +167,7 @@ def main(args = None):
         # 227, 329, 329, 374, 464, 566, 656
         for i in range(1, [227, 329, 329, 374, 464, 566, 656][args.phi]):
             model.layers[i].trainable = False
-
+    
     # compile model
     model.compile(optimizer=Adam(lr = args.lr, clipnorm = 0.001), 
                   loss={'regression': smooth_l1(),
@@ -173,6 +177,15 @@ def main(args = None):
                   loss_weights = {'regression' : 1.0,
                                   'classification': 1.0,
                                   'transformation': 0.02})
+
+    # load optimizer state
+    if args.optimizer is not None:
+        print("Loading optimizer state...")
+        model._make_train_function()
+        with open(args.optimizer, 'rb') as f:
+            optimizer_weights = pickle.load(f)
+        model.optimizer.set_weights(optimizer_weights)
+        print("\nDone!")    
 
     # create the callbacks
     callbacks = create_callbacks(
@@ -188,10 +201,10 @@ def main(args = None):
         raise ValueError('When you have no validation data, you should not specify --compute-val-loss.')
 
     # start training
-    return model.fit_generator(
+    model.fit_generator(
         generator = train_generator,
         steps_per_epoch = args.steps,
-        initial_epoch = 0,
+        initial_epoch = INITIAL_EPOCH,
         epochs = args.epochs,
         verbose = 1,
         callbacks = callbacks,
@@ -201,6 +214,11 @@ def main(args = None):
         validation_data = validation_generator
     )
 
+    #Save optimizer state after training
+    symbolic_weights = getattr(model.optimizer, 'weights')
+    weight_values = keras.backend.batch_get_value(symbolic_weights)
+    with open(os.path.join(args.snapshot_path, 'optimizer.pkl'), 'wb') as f:
+        pickle.dump(weight_values, f)
 
 def allow_gpu_growth_memory():
     """
@@ -311,11 +329,11 @@ def create_callbacks(training_model, prediction_model, validation_generator, arg
         os.makedirs(snapshot_path, exist_ok = True)
         checkpoint = keras.callbacks.ModelCheckpoint(os.path.join(snapshot_path, 'phi_{phi}_{dataset_type}_best_{metric}.h5'.format(phi = str(args.phi), metric = metric_to_monitor, dataset_type = args.dataset_type)),
                                                      verbose = 1,
-                                                     save_weights_only = False,
+                                                     save_weights_only = True,
                                                      save_best_only = False,
                                                      monitor = metric_to_monitor,
                                                      mode = mode,
-                                                     save_freq = 10)
+                                                     save_freq = 'epoch')
         callbacks.append(checkpoint)
 
     callbacks.append(keras.callbacks.ReduceLROnPlateau(
@@ -413,8 +431,8 @@ def create_generators(args):
         train_generator = AssemblyGenerator(
             args.assembly_path,
             rotation_representation = args.rotation_representation,
-            use_colorspace_augmentation = False,
-            use_6DoF_augmentation = True,
+            use_colorspace_augmentation = not args.no_color_augmentation,
+            use_6DoF_augmentation = not args.no_6dof_augmentation,
             **common_args
         )
 

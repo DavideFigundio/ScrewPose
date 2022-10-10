@@ -1,19 +1,16 @@
+
 """
 EfficientPose (c) by Steinbeis GmbH & Co. KG für Technologietransfer
 Haus der Wirtschaft, Willi-Bleicher-Straße 19, 70174 Stuttgart, Germany
 Yannick Bukschat: yannick.bukschat@stw.de
 Marcus Vetter: marcus.vetter@stw.de
-
 EfficientPose is licensed under a
 Creative Commons Attribution-NonCommercial 4.0 International License.
-
 The license can be found in the LICENSE file in the root directory of this source tree
 or at http://creativecommons.org/licenses/by-nc/4.0/.
 ---------------------------------------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------------------------------------
-
 Based on:
-
 Keras EfficientDet implementation (https://github.com/xuannianz/EfficientDet) licensed under the Apache License, Version 2.0
 ---------------------------------------------------------------------------------------------------------------------------------
 The official EfficientDet implementation (https://github.com/google/automl) licensed under the Apache License, Version 2.0
@@ -45,12 +42,14 @@ def main():
 
     #input parameter
     phi = 0
-    path_to_weights = "./weights/assembly_150_epochs.h5"
+    path_to_weights = "./checkpoints/200_epochs/assembly/phi_0_assembly_best_ADD(-S).h5"
+    #path_to_weights = "./weights/phi_0_occlusion_best_ADD(-S).h5"
     # save_path = "./predictions/occlusion/" #where to save the images or None if the images should be displayed and not saved
     save_path = None
     image_extension = ".jpg"
     class_to_name = {0: "screw", 1: "workpiece"} 
     #class_to_name = {0: "driller"} #Linemod use a single class with a name of the Linemod objects
+    #class_to_name = {0: "ape", 1: "can", 2: "cat", 3: "driller", 4: "duck", 5: "eggbox", 6: "glue", 7: "holepuncher"}
     score_threshold = 0.5
     translation_scale_norm = 1000.0
     draw_bbox_2d = False
@@ -65,7 +64,7 @@ def main():
     #build model and load weights
     model, image_size = build_model_and_load_weights(phi, num_classes, score_threshold, path_to_weights)
     
-    webcam = cv2.VideoCapture(-1)
+    webcam = cv2.VideoCapture(0)
     
     #inferencing
     print("\nStarting inference...\n")
@@ -139,7 +138,7 @@ def get_linemod_3d_bboxes():
     Returns:
         name_to_3d_bboxes: Dictionary with the Linemod and Occlusion 3D model names as keys and the cuboids as values
     """
-    '''
+    ''' 
     name_to_model_info = {"ape":            {"diameter": 102.09865663, "min_x": -37.93430000, "min_y": -38.79960000, "min_z": -45.88450000, "size_x": 75.86860000, "size_y": 77.59920000, "size_z": 91.76900000},
                             "benchvise":    {"diameter": 247.50624233, "min_x": -107.83500000, "min_y": -60.92790000, "min_z": -109.70500000, "size_x": 215.67000000, "size_y": 121.85570000, "size_z": 219.41000000},
                             "cam":          {"diameter": 172.49224865, "min_x": -68.32970000, "min_y": -71.51510000, "min_z": -50.24850000, "size_x": 136.65940000, "size_y": 143.03020000, "size_z": 100.49700000},
@@ -156,7 +155,7 @@ def get_linemod_3d_bboxes():
     '''
     name_to_model_info = {"screw":          {"diameter": 37.2738, "min_x": -5.7735, "min_y": -5.0, "min_z": -17, "size_x": 11.547, "size_y": 10.0, "size_z": 34.0},
                             "workpiece":    {"diameter": 51.9615, "min_x": -15.0, "min_y": -15.0, "min_z": -15.0, "size_x": 30.0, "size_y": 30.0, "size_z": 30.0}}
-        
+       
     name_to_3d_bboxes = {name: convert_bbox_3d(model_info) for name, model_info in name_to_model_info.items()}
     
     return name_to_3d_bboxes

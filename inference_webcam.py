@@ -3,17 +3,13 @@ EfficientPose (c) by Steinbeis GmbH & Co. KG für Technologietransfer
 Haus der Wirtschaft, Willi-Bleicher-Straße 19, 70174 Stuttgart, Germany
 Yannick Bukschat: yannick.bukschat@stw.de
 Marcus Vetter: marcus.vetter@stw.de
-
 EfficientPose is licensed under a
 Creative Commons Attribution-NonCommercial 4.0 International License.
-
 The license can be found in the LICENSE file in the root directory of this source tree
 or at http://creativecommons.org/licenses/by-nc/4.0/.
 ---------------------------------------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------------------------------------
-
 Based on:
-
 Keras EfficientDet implementation (https://github.com/xuannianz/EfficientDet) licensed under the Apache License, Version 2.0
 ---------------------------------------------------------------------------------------------------------------------------------
 The official EfficientDet implementation (https://github.com/google/automl) licensed under the Apache License, Version 2.0
@@ -121,7 +117,6 @@ def main():
 def allow_gpu_growth_memory():
     """
         Set allow growth GPU memory to true
-
     """
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
@@ -133,7 +128,6 @@ def get_linemod_camera_matrix():
     """
     Returns:
         The Linemod and Occlusion 3x3 camera matrix
-
     """
     return np.array([[572.4114, 0., 325.2611], [0., 573.57043, 242.04899], [0., 0., 1.]], dtype = np.float32)
 
@@ -142,7 +136,6 @@ def get_linemod_3d_bboxes():
     """
     Returns:
         name_to_3d_bboxes: Dictionary with the Linemod and Occlusion 3D model names as keys and the cuboids as values
-
     """
     ''' 
     name_to_model_info = {"ape":            {"diameter": 102.09865663, "min_x": -37.93430000, "min_y": -38.79960000, "min_z": -45.88450000, "size_x": 75.86860000, "size_y": 77.59920000, "size_z": 91.76900000},
@@ -174,7 +167,6 @@ def convert_bbox_3d(model_dict):
         model_dict: Dictionary containing the cuboid information of a single Linemod 3D model in the Linemod format
     Returns:
         bbox: numpy (8, 3) array containing the 3D model's cuboid, where the first dimension represents the corner points and the second dimension contains the x-, y- and z-coordinates.
-
     """
     #get infos from model dict
     min_point_x = model_dict["min_x"]
@@ -212,7 +204,6 @@ def build_model_and_load_weights(phi, num_classes, score_threshold, path_to_weig
     Returns:
         efficientpose_prediction: The EfficientPose model
         image_size: Integer image size used as the EfficientPose input resolution for the given phi
-
     """
     print("\nBuilding model...\n")
     _, efficientpose_prediction, _ = build_EfficientPose(phi,
@@ -245,7 +236,6 @@ def preprocess(image, image_size, camera_matrix, translation_scale_norm):
     Returns:
         input_list: List containing the preprocessed inputs for EfficientPose
         scale: The scale factor of the resized input image and the original image
-
     """
     image = image[:, :, ::-1]
     image, scale = preprocess_image(image, image_size)
@@ -268,7 +258,6 @@ def get_camera_parameter_input(camera_matrix, image_scale, translation_scale_nor
         
     Returns:
         input_vector: numpy array [fx, fy, px, py, translation_scale_norm, image_scale]
-
     """
     #input_vector = [fx, fy, px, py, translation_scale_norm, image_scale]
     input_vector = np.zeros((6,), dtype = np.float32)
@@ -300,7 +289,6 @@ def postprocess(boxes, scores, labels, rotations, translations, scale, score_thr
         labels: numpy array [num_valid_detections] containing class label
         rotations: numpy array [num_valid_detections, 3] containing the axis angle rotation vectors
         translations: numpy array [num_valid_detections, 3] containing the translation vectors
-
     """
     boxes, scores, labels, rotations, translations = np.squeeze(boxes), np.squeeze(scores), np.squeeze(labels), np.squeeze(rotations), np.squeeze(translations)
     # correct boxes for image scale

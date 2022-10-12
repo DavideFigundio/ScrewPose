@@ -105,7 +105,7 @@ def create_generator(args):
         Generator
         
     """
-
+    print("Building generator...")
     if args.dataset_type == 'linemod':
         generator = LineModGenerator(
             args.linemod_path,

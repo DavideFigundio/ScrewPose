@@ -45,11 +45,11 @@ import pickle
 
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.optimizers import Adam
 
 from model import build_EfficientPose
 from losses import smooth_l1, focal, transformation_loss
 from efficientnet import BASE_WEIGHTS_PATH, WEIGHTS_HASHES
+from optimizer_callback import OptimizerCallback
 
 from custom_load_weights import custom_load_weights
 
@@ -171,7 +171,7 @@ def main(args = None):
             model.layers[i].trainable = False
     
     # compile model
-    model.compile(optimizer=Adam(lr = args.lr, clipnorm = 0.001), 
+    model.compile(optimizer=keras.optimizers.Adam(lr = args.lr, clipnorm = 0.001), 
                   loss={'regression': smooth_l1(),
                         'classification': focal(),
                         'transformation': transformation_loss(model_3d_points_np = train_generator.get_all_3d_model_points_array_for_loss(),
@@ -338,15 +338,22 @@ def create_callbacks(training_model, prediction_model, validation_generator, arg
                                                      save_freq = SAVE_FREQUENCY)
         callbacks.append(checkpoint)
 
+    # learning rate reduction if ADD(-S) is stagnating
     callbacks.append(keras.callbacks.ReduceLROnPlateau(
         monitor    = 'MixedAveragePointDistanceMean_in_mm',
-        factor     = 0.5,
-        patience   = 25,
+        factor     = 0.2,
+        patience   = 5,
         verbose    = 1,
         mode       = 'min',
         min_delta  = 0.0001,
         cooldown   = 0,
         min_lr     = 1e-7
+    ))
+
+    # periodic saving of optimizer state
+    callbacks.append(OptimizerCallback(
+        frequency = 10,
+        save_path = args.snapshot_path
     ))
 
     return callbacks

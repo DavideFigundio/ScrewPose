@@ -5,9 +5,13 @@ import numpy as np
 import json
 from pyquaternion import Quaternion
 
+UNDISTORT = True
+SAVE_VERIFICATION = True
+
 # Takes a directory of images and for each image saves all poses of a chosed ArUco marker in a json file for use in Unity.
 def main():
     dirpath = "../background/"  # Path to image directory
+    distdirpath = "../background_undistorted/"
     verpath = "../verification/"
     jsonData = "poses.json"     # Name of json file
     markerLength = 0.041        # Marker size [m]
@@ -18,7 +22,7 @@ def main():
 
     # Camera parameters are for Azure Kinect @720p resolution
     cameraMatrix = np.array([[612.6460571289062, 0., 638.0296020507812], [0., 612.36376953125, 367.6560363769531], [0., 0., 1.]], dtype = np.float32)
-    distortionMatrix = np.array([0.5059323906898499, -2.6153206825256348, 0.000860791013110429, -0.0003529376117512584, 1.4836950302124023], dtype = np.float32)
+    distortionMatrix = np.array([0.5059323906898499, -2.6153206825256348, 0.000860791013110429, -0.0003529376117512584, 1.4836950302124023, 0.3840336799621582, -2.438732385635376, 1.4119256734848022], dtype = np.float32)
 
     posedict = dict()
     
@@ -28,15 +32,23 @@ def main():
         image = cv2.imread(join(dirpath, imgname))
         (corners, ids, _) = cv2.aruco.detectMarkers(image, dictionary, parameters=arcucoParams)
 
+        original_image = image.copy()
+
         if ids.any():
             rvects, tvects, _ = cv2.aruco.estimatePoseSingleMarkers(corners, markerLength, cameraMatrix, distortionMatrix)
 
             for i in range(0, len(ids)):
                 if ids[i] == markerID:
-                    #cv2.drawFrameAxes(image, cameraMatrix, distortionMatrix, rvects[i], tvects[i], 0.1)
+                    if SAVE_VERIFICATION:
+                        cv2.drawFrameAxes(image, cameraMatrix, distortionMatrix, rvects[i], tvects[i], 0.1)
                     posedict[imgname] = {"rotation": RodriguezToUnityQuaternion(rvects[i][0]), "translation": {'x': tvects[i][0][0], 'y': -tvects[i][0][1], 'z': tvects[i][0][2]}}
         
-        #cv2.imwrite(join(verpath, imgname), image)
+        if UNDISTORT:
+            dst = cv2.undistort(original_image, cameraMatrix, distortionMatrix, None)
+            cv2.imwrite(join(distdirpath, imgname), dst)
+
+        if SAVE_VERIFICATION:
+            cv2.imwrite(join(verpath, imgname), image)
     
     print("Saving to json...             ")
     with open(join(dirpath, jsonData), 'w') as file:

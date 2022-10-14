@@ -54,8 +54,8 @@ from optimizer_callback import OptimizerCallback
 from custom_load_weights import custom_load_weights
 
 INITIAL_EPOCH = 0
-DEFAULT_EPOCHS = 50
-SAVE_FREQUENCY = 90000
+DEFAULT_EPOCHS = 1
+SAVE_FREQUENCY = 9000
 LEARNING_RATE = 1e-4    # INITIAL 1e-4
 
 def parse_args(args):
@@ -80,20 +80,23 @@ def parse_args(args):
     assembly_parser = subparsers.add_parser('assembly')
     assembly_parser.add_argument('assembly_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed/).')
 
+    screwpose_parser = subparsers.add_parser('screwpose')
+    screwpose_parser.add_argument('screwpose_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed/).')
+
     parser.add_argument('--rotation-representation', help = 'Which representation of the rotation should be used. Choose from "axis_angle", "rotation_matrix" and "quaternion"', default = 'axis_angle')    
 
     parser.add_argument('--weights', help = 'File containing weights to init the model parameter')
     parser.add_argument('--freeze-backbone', help = 'Freeze training of backbone layers.', action = 'store_true')
     parser.add_argument('--no-freeze-bn', help = 'Do not freeze training of BatchNormalization layers.', action = 'store_true')
 
-    parser.add_argument('--batch-size', help = 'Size of the batches.', default = 6, type = int)
+    parser.add_argument('--batch-size', help = 'Size of the batches.', default = 4, type = int)
     parser.add_argument('--lr', help = 'Learning rate', default = LEARNING_RATE, type = float)
     parser.add_argument('--no-color-augmentation', help = 'Do not use colorspace augmentation', action = 'store_true', default = False)
     parser.add_argument('--no-6dof-augmentation', help = 'Do not use 6DoF augmentation', action = 'store_true', default = False)
     parser.add_argument('--phi', help = 'Hyper parameter phi', default = 0, type = int, choices = (0, 1, 2, 3, 4, 5, 6))
     parser.add_argument('--gpu', help = 'Id of the GPU to use (as reported by nvidia-smi).')
     parser.add_argument('--epochs', help = 'Number of epochs to train.', type = int, default = DEFAULT_EPOCHS)
-    parser.add_argument('--steps', help = 'Number of steps per epoch.', type = int, default = 1500)
+    parser.add_argument('--steps', help = 'Number of steps per epoch.', type = int, default = 2250)
     parser.add_argument('--snapshot-path', help = 'Path to store snapshots of models during training', default = os.path.join("checkpoints", date_and_time))
     parser.add_argument('--tensorboard-dir', help = 'Log directory for Tensorboard output', default = os.path.join("logs", date_and_time))
     parser.add_argument('--no-snapshots', help = 'Disable saving snapshots.', dest = 'snapshots', action = 'store_false')
@@ -297,6 +300,17 @@ def create_callbacks(training_model, prediction_model, validation_generator, arg
             
         metric_to_monitor = "ADD(-S)"
         mode = "max"
+    elif args.dataset_type == "screwpose":
+        snapshot_path = os.path.join(args.snapshot_path)
+        if args.validation_image_save_path:
+            save_path = os.path.join(args.validation_image_save_path)
+        else:
+            save_path = args.validation_image_save_path
+        if args.tensorboard_dir:
+            tensorboard_dir = os.path.join(args.tensorboard_dir)
+            
+        metric_to_monitor = "ADD(-S)"
+        mode = "max"
 
     else:
         snapshot_path = args.snapshot_path
@@ -352,7 +366,7 @@ def create_callbacks(training_model, prediction_model, validation_generator, arg
 
     # periodic saving of optimizer state
     callbacks.append(OptimizerCallback(
-        frequency = 10,
+        frequency = 1,
         save_path = args.snapshot_path
     ))
 
@@ -375,6 +389,7 @@ def create_generators(args):
 
     if args.dataset_type == 'linemod':
         from generators.linemod import LineModGenerator
+        print("Creating the training generator...")
         train_generator = LineModGenerator(
             args.linemod_path,
             args.object_id,
@@ -384,6 +399,7 @@ def create_generators(args):
             **common_args
         )
 
+        print("Creating the validation generator...")
         validation_generator = LineModGenerator(
             args.linemod_path,
             args.object_id,
@@ -397,6 +413,7 @@ def create_generators(args):
         )
     elif args.dataset_type == 'occlusion':
         from generators.occlusion import OcclusionGenerator
+        print("Creating the training generator...")
         train_generator = OcclusionGenerator(
             args.occlusion_path,
             rotation_representation = args.rotation_representation,
@@ -405,6 +422,7 @@ def create_generators(args):
             **common_args
         )
 
+        print("Creating the validation generator...")
         validation_generator = OcclusionGenerator(
             args.occlusion_path,
             train = False,
@@ -417,6 +435,7 @@ def create_generators(args):
         )
     elif args.dataset_type == 'screwdataset':
         from generators.screwdataset import ScrewDatasetGenerator
+        print("Creating the training generator...")
         train_generator = ScrewDatasetGenerator(
             args.screwdataset_path,
             rotation_representation = args.rotation_representation,
@@ -425,6 +444,7 @@ def create_generators(args):
             **common_args
         )
 
+        print("Creating the validation generator...")
         validation_generator = ScrewDatasetGenerator(
             args.screwdataset_path,
             train = False,
@@ -435,8 +455,31 @@ def create_generators(args):
             use_6DoF_augmentation = False,
             **common_args
         )
+    elif args.dataset_type == 'screwpose':
+        from generators.screwpose import ScrewPoseGenerator
+        print("Creating the training generator...")
+        train_generator = ScrewPoseGenerator(
+            args.screwpose_path,
+            rotation_representation = args.rotation_representation,
+            use_colorspace_augmentation = not args.no_color_augmentation,
+            use_6DoF_augmentation = not args.no_6dof_augmentation,
+            **common_args
+        )
+
+        print("Creating the validation generator...")
+        validation_generator = ScrewPoseGenerator(
+            args.screwpose_path,
+            train = False,
+            shuffle_dataset = False,
+            shuffle_groups = False,
+            rotation_representation = args.rotation_representation,
+            use_colorspace_augmentation = False,
+            use_6DoF_augmentation = False,
+            **common_args
+        )
     elif args.dataset_type == 'assembly':
         from generators.assembly import AssemblyGenerator
+        print("Creating the training generator...")
         train_generator = AssemblyGenerator(
             args.assembly_path,
             rotation_representation = args.rotation_representation,
@@ -445,6 +488,7 @@ def create_generators(args):
             **common_args
         )
 
+        print("Creating the validation generator...")
         validation_generator = AssemblyGenerator(
             args.assembly_path,
             train = False,

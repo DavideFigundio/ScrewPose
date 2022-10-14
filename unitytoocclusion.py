@@ -10,26 +10,30 @@ import os
 from os.path import join
 
 def main():
-    datalocationpath = './datasets/ScrewDataset/data/00/'
+    datalocationpath = './datasets/ScrewPose/data/'
     numberOfSamples = 10000
     trainamount = 9000
     samplesPerCaptureFile = 150
+    nameToIdDict = {"M8x50": 1, "M8x25": 2, "M8x16": 3, "M6x30": 4}
 
     Cam_intrinsic = [640.0, 0., 640.0, 0., 640.0, 360.0, 0., 0., 1.]
 
     deletePreviousGT(datalocationpath)
     
-    createLabels(datalocationpath, samplesPerCaptureFile, numberOfSamples, Cam_intrinsic)
+    createLabels(datalocationpath, samplesPerCaptureFile, numberOfSamples, Cam_intrinsic, nameToIdDict)
 
     createSplits(datalocationpath, trainamount, numberOfSamples)
 
-    renameImages(datalocationpath, numberOfSamples)
+    #renameImages(datalocationpath, numberOfSamples)
 
     print("Done!")
 
-def createLabels(datalocationpath, samplesPerCaptureFile, numberOfSamples, Cam_intrinsic):
-    totalCaptures = ceil(numberOfSamples/samplesPerCaptureFile)
+def createLabels(datalocationpath, samplesPerCaptureFile, numberOfSamples, Cam_intrinsic, nameToIdDict):
     print("Creating ground truth labels...")
+
+    totalCaptures = ceil(numberOfSamples/samplesPerCaptureFile)
+    imageData = {name : ObjectData(nameToIdDict[name]) for name in nameToIdDict.keys()}
+
     j=0
     with open(join(datalocationpath, 'gt.yml'), 'w') as ymlfile:
         for i in range(0, totalCaptures):
@@ -46,49 +50,34 @@ def createLabels(datalocationpath, samplesPerCaptureFile, numberOfSamples, Cam_i
 
                 for i in range(0, len(jsonData['captures'])):
 
-                    screw_present = False
-                    assembly_present = False
-
                     for annotation in jsonData['captures'][i]['annotations']:
 
                         if annotation['id'] == 'bounding box':
 
                             for bboxdata in annotation['values']:
-                                if bboxdata['label_name'] == "Bolt":
-                                    screwbbox = [bboxdata['x'], bboxdata['y'], bboxdata['width'], bboxdata['height']]
-                                    screw_present = True
+                                name = bboxdata['label_name']
+                                imageData[name].bbox = [bboxdata['x'], bboxdata['y'], bboxdata['width'], bboxdata['height']]
+                                imageData[name].present = True
 
-                                elif bboxdata['label_name'] == "Assembly":
-                                    assemblybbox = [bboxdata['x'], bboxdata['y'], bboxdata['width'], bboxdata['height']]
-                                    assembly_present = True
-                    
                         elif annotation['id'] == 'bounding box 3D':
 
                             for bboxdata in annotation['values']:
-                                if bboxdata['label_name'] == "Bolt":
-                                    translationdata = bboxdata['translation']
-                                    screwtranslation = [1000*translationdata['x'], -1000*translationdata['y'], 1000*translationdata['z']]
+                                name = bboxdata['label_name']
 
-                                    rotationdata = bboxdata['rotation']
-                                    screwrotation = convertQuaternionToMatrix(rotationdata['x'], rotationdata['y'], rotationdata['z'], rotationdata['w'])
-                                elif bboxdata['label_name'] == "Assembly":
-                                    translationdata = bboxdata['translation']
-                                    assemblytranslation = [1000*translationdata['x'], -1000*translationdata['y'], 1000*translationdata['z']]
+                                translationdata = bboxdata['translation']
+                                rotationdata = bboxdata['rotation']
 
-                                    rotationdata = bboxdata['rotation']
-                                    assemblyrotation = convertQuaternionToMatrix(rotationdata['x'], rotationdata['y'], rotationdata['z'], rotationdata['w'])    
-                    
+                                imageData[name].translation = [1000*translationdata['x'], -1000*translationdata['y'], 1000*translationdata['z']]
+                                imageData[name].rotation = convertQuaternionToMatrix(rotationdata['x'], rotationdata['y'], rotationdata['z'], rotationdata['w'])
+
                     datalist = []
-
-                    if screw_present:
-                        datalist.append({'cam_R_m2c':screwrotation, 'cam_t_m2c':screwtranslation, 'obj_bb':screwbbox, 'obj_id':1})
-                        with open(join(datalocationpath, "valid_poses/1.txt"), "a") as file:
-                            file.write(str(j) + '\n')
-
-                    if assembly_present:
-                        datalist.append({'cam_R_m2c':assemblyrotation, 'cam_t_m2c':assemblytranslation, 'obj_bb':assemblybbox, 'obj_id':2})
-                        with open(join(datalocationpath, "valid_poses/2.txt"), "a") as file:
-                            file.write(str(j) + '\n')
+                    
+                    for key in imageData.keys():
+                        if imageData[key].present:
+                            datalist.append({'cam_R_m2c':imageData[key].rotation, 'cam_t_m2c':imageData[key].translation, 'obj_bb':imageData[key].bbox, 'obj_id':imageData[key].ID})
+                            with open(join(datalocationpath, imageData[key].valid_poses_file), "a") as file:
+                                file.write(str(j) + '\n')
+                            imageData[key].clear()
         
                     yaml.dump({j:datalist}, ymlfile)
                     j += 1
@@ -163,6 +152,22 @@ def deletePreviousGT(dirpath):
     os.remove(join(dirpath, "train.txt"))
     os.remove(join(dirpath, "valid_poses/1.txt"))
     os.remove(join(dirpath, "valid_poses/2.txt"))
+
+class ObjectData:
+
+    def __init__(self, ID):
+        self.ID = ID
+        self.present = False
+        self.bbox = None
+        self.translation = None
+        self.rotation = None
+        self.valid_poses_file = "valid_poses/" + str(ID) + ".txt"
+
+    def clear(self):
+        self.present = False
+        self.bbox = None
+        self.translation = None
+        self.rotation = None
 
 if __name__ == "__main__":
     main()

@@ -72,6 +72,7 @@ class Generator(keras.utils.Sequence):
             group_method: Determines how images are grouped together (defaults to 'ratio', one of ('none', 'random', 'ratio')).
             shuffle_groups: If True, shuffles the groups each epoch.
         """
+        print("    Initializing default Generator...")
         self.batch_size = int(batch_size)
         self.group_method = group_method
         self.shuffle_groups = shuffle_groups
@@ -94,6 +95,7 @@ class Generator(keras.utils.Sequence):
             self.rand_aug = None
 
         # Define groups
+        print("    Defining groups...")
         self.group_images()
 
         # Shuffle when initializing

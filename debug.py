@@ -38,7 +38,7 @@ import cv2
 
 from generators.linemod import LineModGenerator
 from generators.occlusion import OcclusionGenerator
-from generators.screwdataset import ScrewDatasetGenerator
+from generators.screwpose import ScrewPoseGenerator
 from generators.assembly import AssemblyGenerator
 from utils.visualization import draw_annotations, draw_boxes
 from utils.anchors import anchors_for_shape, compute_gt_annotations
@@ -58,8 +58,8 @@ def parse_args(args):
     occlusion_parser = subparsers.add_parser('occlusion')
     occlusion_parser.add_argument('occlusion_path', help = 'Path to dataset directory (ie. /tmp/occlusion).')
 
-    screwdataset_parser = subparsers.add_parser('screwdataset')
-    screwdataset_parser.add_argument('screwdataset_path', help = 'Path to dataset directory (ie. /tmp/occlusion).')
+    screwdataset_parser = subparsers.add_parser('screwpose')
+    screwdataset_parser.add_argument('screwpose_path', help = 'Path to dataset directory (ie. /tmp/occlusion).')
 
     screwdataset_parser = subparsers.add_parser('assembly')
     screwdataset_parser.add_argument('assembly_path', help = 'Path to dataset directory (ie. /tmp/occlusion).')
@@ -129,9 +129,9 @@ def create_generator(args):
             use_6DoF_augmentation = not args.no_6dof_augmentation,
             phi = args.phi,
         )
-    elif args.dataset_type == 'screwdataset':
-        generator = ScrewDatasetGenerator(
-            args.screwdataset_path,
+    elif args.dataset_type == 'screwpose':
+        generator = ScrewPoseGenerator(
+            args.screwpose_path,
             train = True,
             shuffle_dataset = False,
             shuffle_groups = False,

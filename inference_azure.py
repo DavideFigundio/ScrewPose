@@ -17,29 +17,23 @@ from utils.visualization import draw_detections
 
 def main():
     """
-    Run EfficientPose in inference mode live on azure kinect.
+    Run EfficientPose in inference mode live on Azure Kinect.
     
     """
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     allow_gpu_growth_memory()
 
-    #input parameter
+    #input parameters
     phi = 0
-    path_to_weights = "./weights/assembly_150_epochs.h5"
-    # save_path = "./predictions/occlusion/" #where to save the images or None if the images should be displayed and not saved
-    save_path = None
-    image_extension = ".jpg"
+    path_to_weights = "./weights/decoys_50_epochs.h5"
     class_to_name = {0: "screw", 1: "workpiece"} 
-    #class_to_name = {0: "driller"} #Linemod use a single class with a name of the Linemod objects
-    score_threshold = 0.1
+    score_threshold = 0.5
     translation_scale_norm = 1000.0
     draw_bbox_2d = False
     draw_name = False
-    #you probably need to replace the linemod camera matrix with the one of your webcam
-    camera_matrix = get_camera_matrix()
-    name_to_3d_bboxes = get_linemod_3d_bboxes()
-    class_to_3d_bboxes = {class_idx: name_to_3d_bboxes[name] for class_idx, name in class_to_name.items()} 
     
+    name_to_3d_bboxes = get_3d_bboxes()
+    class_to_3d_bboxes = {class_idx: name_to_3d_bboxes[name] for class_idx, name in class_to_name.items()} 
     num_classes = len(class_to_name)
     
     #build model and load weights
@@ -52,16 +46,18 @@ def main():
 
 	# Modify camera configuration
     device_config = pykinect.default_configuration
-	# print(device_config)
 
 	# Start device
     device = pykinect.start_device(config=device_config)
+
+    # Getting intrinsic parameters
+    print_params = True
+    camera_matrix, dist = get_camera_params(device.calibration, print_params)
     
     #inferencing
     print("\nStarting inference...\n")
-    cv2.namedWindow('Color Image',cv2.WINDOW_NORMAL)
+    cv2.namedWindow('ScrewPose', cv2.WINDOW_NORMAL)
 
-    i = 0
     while True:
 
 		# Get capture
@@ -73,6 +69,9 @@ def main():
         
         if not ret:
             continue
+        
+        #Undistorting the imgae
+        cv2.undistort(image, camera_matrix, dist)
 
         original_image = image.copy()
         
@@ -84,9 +83,6 @@ def main():
         
         #postprocessing
         boxes, scores, labels, rotations, translations = postprocess(boxes, scores, labels, rotations, translations, scale, score_threshold)
-        
-        # print('Number of boxes detected:' + str(len(boxes)))
-        print(translations)
 
         draw_detections(original_image,
                         boxes,
@@ -101,17 +97,18 @@ def main():
                         draw_name = draw_name)
 		
 		# Plot the image
-        cv2.imshow("Color Image",original_image)
+        cv2.imshow("ScrewPose", original_image)
 		
 		# Press q key to stop
         if cv2.waitKey(1) == ord('q'): 
             break
+        
     #release webcam and close windows
     cv2.destroyAllWindows()
     
 
 def allow_gpu_growth_memory():
-    """
+    """image_size
         Set allow growth GPU memory to true
 
     """
@@ -121,16 +118,33 @@ def allow_gpu_growth_memory():
 
 
 
-def get_camera_matrix():
+def get_camera_params(calibration, print_params=False):
     """
+    Args:
+        calibration: A calibration object from an Azure Kinect camera.
+        print: bool, if true prints the calibration parameters when called.
     Returns:
-        The Azure Kinect 3x3 camera matrix
-
+        mat: 3x3 camera intrinsic matrix of the type:
+            |fx  0   cx|
+            |0   fy  cy|
+            |0   0   1 |
+        dist: camera distortion parameters in the form:
+            [k1, k2, p1, p2, k3, k4, k5, k6]
     """
-    return np.array([[612.64, 0., 638.02], [0., 612.36, 367.65], [0., 0., 1.]], dtype = np.float32)
+    if print_params:
+        print(calibration)
+
+    params = calibration.color_params
+
+    mat = np.array([[params.fx, 0., params.cx], [0., params.fy, params.cy], [0., 0., 1.]], dtype = np.float32)
+
+    dist = np.array([params.k1, params.k2, params.p1, params.p2, params.k3, params.k4, params.k5, params.k6])
+    #return np.array([[612.64, 0., 638.02], [0., 612.36, 367.65], [0., 0., 1.]], dtype = np.float32)
+
+    return mat, dist
 
 
-def get_linemod_3d_bboxes():
+def get_3d_bboxes():
     """
     Returns:
         name_to_3d_bboxes: Dictionary with the Linemod and Occlusion 3D model names as keys and the cuboids as values

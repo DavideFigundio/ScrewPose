@@ -42,12 +42,13 @@ def main():
 
     #input parameter
     phi = 0
-    path_to_weights = "./checkpoints/200_epochs/assembly/phi_0_assembly_best_ADD(-S).h5"
+    path_to_weights = "./checkpoints/screwpose_50_epochs/phi_0_screwpose_best_ADD(-S).h5"
     #path_to_weights = "./weights/phi_0_occlusion_best_ADD(-S).h5"
     # save_path = "./predictions/occlusion/" #where to save the images or None if the images should be displayed and not saved
     save_path = None
     image_extension = ".jpg"
-    class_to_name = {0: "screw", 1: "workpiece"} 
+    class_to_name = {0 : "M8x50", 1 : "M8x25", 2 : "M8x16", 3 : "M6x30"}
+    #class_to_name = {0: "screw", 1: "workpiece"} 
     #class_to_name = {0: "driller"} #Linemod use a single class with a name of the Linemod objects
     #class_to_name = {0: "ape", 1: "can", 2: "cat", 3: "driller", 4: "duck", 5: "eggbox", 6: "glue", 7: "holepuncher"}
     score_threshold = 0.5
@@ -153,10 +154,15 @@ def get_linemod_3d_bboxes():
                             "iron":         {"diameter": 278.07811733, "min_x": -129.11300000, "min_y": -59.24100000, "min_z": -70.56620000, "size_x": 258.22600000, "size_y": 118.48210000, "size_z": 141.13240000},
                             "lamp":         {"diameter": 282.60129399, "min_x": -101.57300000, "min_y": -58.87630000, "min_z": -106.55800000, "size_x": 203.14600000, "size_y": 117.75250000, "size_z": 213.11600000},
                             "phone":        {"diameter": 212.35825148, "min_x": -46.95910000, "min_y": -73.71670000, "min_z": -92.37370000, "size_x": 93.91810000, "size_y": 147.43340000, "size_z": 184.74740000}}
-    '''
+    
     name_to_model_info = {"screw":          {"diameter": 37.2738, "min_x": -5.7735, "min_y": -5.0, "min_z": -17, "size_x": 11.547, "size_y": 10.0, "size_z": 34.0},
                             "workpiece":    {"diameter": 51.9615, "min_x": -15.0, "min_y": -15.0, "min_z": -15.0, "size_x": 30.0, "size_y": 30.0, "size_z": 30.0}}
-       
+    '''
+    name_to_model_info = {"M8x50":  {"diameter": 58.9428, "min_x": -6.5, "min_y": -6.4723, "min_z": -29.0, "size_x": 13.0, "size_y": 12.9445, "size_z": 58.0},
+                          "M8x25":  {"diameter": 34.6302, "min_x": -6.5, "min_y": -6.5, "min_z": -15.5, "size_x": 13.0, "size_y": 13.0, "size_z": 33.0},
+                          "M8x16":  {"diameter": 21.4, "min_x": -7.0, "min_y": -6.9837, "min_z": -10.2, "size_x": 14.0, "size_y": 13.9674, "size_z": 20.4},
+                          "M6x30":  {"diameter": 37.2738, "min_x": -5.7735, "min_y": -5.0, "min_z": -17.0, "size_x": 11.547, "size_y": 10.0, "size_z": 34.0}}
+
     name_to_3d_bboxes = {name: convert_bbox_3d(model_info) for name, model_info in name_to_model_info.items()}
     
     return name_to_3d_bboxes

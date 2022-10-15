@@ -53,9 +53,9 @@ from optimizer_callback import OptimizerCallback
 
 from custom_load_weights import custom_load_weights
 
-INITIAL_EPOCH = 0
-DEFAULT_EPOCHS = 1
-SAVE_FREQUENCY = 9000
+INITIAL_EPOCH = 10
+DEFAULT_EPOCHS = 50
+SAVE_FREQUENCY = 90000
 LEARNING_RATE = 1e-4    # INITIAL 1e-4
 
 def parse_args(args):
@@ -218,12 +218,6 @@ def main(args = None):
         max_queue_size = args.max_queue_size,
         validation_data = validation_generator
     )
-
-    #Save optimizer state after training
-    symbolic_weights = getattr(model.optimizer, 'weights')
-    weight_values = keras.backend.batch_get_value(symbolic_weights)
-    with open(os.path.join(args.snapshot_path, 'optimizer.pkl'), 'wb') as f:
-        pickle.dump(weight_values, f)
 
 def allow_gpu_growth_memory():
     """

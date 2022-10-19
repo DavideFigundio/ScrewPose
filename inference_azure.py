@@ -6,14 +6,20 @@ import cv2
 import numpy as np
 import os
 import math
-
+import struct
 import tensorflow as tf
 import pykinect_azure as pykinect
+from plyfile import PlyData, PlyElement
+from pykinect_azure.utils import Open3dVisualizer
 
+import icp_refinement as icp
 from model import build_EfficientPose
 from utils import preprocess_image
 from utils.visualization import draw_detections
 
+DO_ICP = False
+VISUALIZE_POINTCLOUD = False
+CLASS_TO_NAME = {0 : "M8x50", 1 : "M8x25", 2 : "M8x16", 3 : "M6x30"}
 
 def main():
     """
@@ -25,10 +31,11 @@ def main():
 
     #input parameters
     phi = 0
-    path_to_weights = "./weights/decoys_50_epochs.h5"
-    class_to_name = {0: "screw", 1: "workpiece"} 
+    path_to_weights = "./weights/screwpose_100_epochs.h5"
+    path_to_models = "./models/"
+    class_to_name = CLASS_TO_NAME
     score_threshold = 0.5
-    translation_scale_norm = 1000.0
+    translation_scale_norm = 1000.0     # conversion factor from m to mm
     draw_bbox_2d = False
     draw_name = False
     
@@ -36,27 +43,42 @@ def main():
     class_to_3d_bboxes = {class_idx: name_to_3d_bboxes[name] for class_idx, name in class_to_name.items()} 
     num_classes = len(class_to_name)
     
+    name_to_models = load_3D_models(class_to_name, path_to_models)
+
+    ICP = icp.create_ICP(100)
+
     #build model and load weights
     model, image_size = build_model_and_load_weights(phi, num_classes, score_threshold, path_to_weights)
-    
     print("\nSetting up Azure Kinect...\n")
+
+    visualizer = Open3dVisualizer()
 
     # Initialize the library, if the library is not found, add the library path as argument
     pykinect.initialize_libraries()
 
 	# Modify camera configuration
     device_config = pykinect.default_configuration
+    device_config.color_resolution = pykinect.K4A_COLOR_RESOLUTION_720P
+
+    if DO_ICP:
+        device_config.depth_mode = pykinect.K4A_DEPTH_MODE_NFOV_UNBINNED
+        device_config.synchronized_images_only = True
+        
+    
 
 	# Start device
     device = pykinect.start_device(config=device_config)
 
     # Getting intrinsic parameters
     print_params = True
-    camera_matrix, dist = get_camera_params(device.calibration, print_params)
+    camera_matrix, dist, depthmat = get_camera_params(device.calibration, print_params)
     
+    cv2.namedWindow('ScrewPose', cv2.WINDOW_NORMAL)
+
     #inferencing
     print("\nStarting inference...\n")
-    cv2.namedWindow('ScrewPose', cv2.WINDOW_NORMAL)
+
+    #visualizer = Open3dVisualizer()
 
     while True:
 
@@ -65,25 +87,42 @@ def main():
 
 		# Get the color image from the capture
         ret, image = capture.get_color_image()
-        image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
         
         if not ret:
             continue
-        
-        #Undistorting the imgae
-        cv2.undistort(image, camera_matrix, dist)
 
-        original_image = image.copy()
         
-        #preprocessing
+        # Removing alpha channel
+        image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+
+        # Undistorting the imgae
+        image = cv2.undistort(image, camera_matrix, dist)
+        
+        # Preprocessing
+        original_image = image.copy()
         input_list, scale = preprocess(image, image_size, camera_matrix, translation_scale_norm)
         
-        #predict
+        # Pose inference with EfficientPose
         boxes, scores, labels, rotations, translations = model.predict_on_batch(input_list)
         
-        #postprocessing
+        # Postprocessing
         boxes, scores, labels, rotations, translations = postprocess(boxes, scores, labels, rotations, translations, scale, score_threshold)
 
+        # Pose refinement with ICP
+        if DO_ICP and translations.any():
+            _, pointcloud = capture.get_pointcloud()
+            
+            # print(type(pointcloud))
+            # print(pointcloud)
+            # savePointcloud(pointcloud, "pointcloud.ply")
+            # break
+
+            pointcloud = icp.crop_pointcloud(pointcloud, translations[0], 40)
+            visualizer(pointcloud)
+            #visualizer(cropped_pc)
+            rotations, translations = icp.pose_refinement(ICP, pointcloud, labels, rotations, translations, class_to_name, name_to_models)
+
+        # Plotting detections and displaying the image
         draw_detections(original_image,
                         boxes,
                         scores,
@@ -96,7 +135,7 @@ def main():
                         draw_bbox_2d = draw_bbox_2d,
                         draw_name = draw_name)
 		
-		# Plot the image
+		
         cv2.imshow("ScrewPose", original_image)
 		
 		# Press q key to stop
@@ -116,13 +155,12 @@ def allow_gpu_growth_memory():
     config.gpu_options.allow_growth = True
     _ = tf.Session(config = config)
 
-
-
 def get_camera_params(calibration, print_params=False):
     """
+    Gets camera parameters from current Azure calibration settings.
     Args:
         calibration: A calibration object from an Azure Kinect camera.
-        print: bool, if true prints the calibration parameters when called.
+        print: bool, if true prints the calibration parameters when executed.
     Returns:
         mat: 3x3 camera intrinsic matrix of the type:
             |fx  0   cx|
@@ -135,14 +173,15 @@ def get_camera_params(calibration, print_params=False):
         print(calibration)
 
     params = calibration.color_params
+    depth_params = calibration.depth_params
 
-    mat = np.array([[params.fx, 0., params.cx], [0., params.fy, params.cy], [0., 0., 1.]], dtype = np.float32)
+    mat = np.array(calibration.get_matrix("color"), dtype=np.float32)
 
-    dist = np.array([params.k1, params.k2, params.p1, params.p2, params.k3, params.k4, params.k5, params.k6])
-    #return np.array([[612.64, 0., 638.02], [0., 612.36, 367.65], [0., 0., 1.]], dtype = np.float32)
+    dist = np.array([params.k1, params.k2, params.p1, params.p2, params.k3, params.k4, params.k5, params.k6], dtype = np.float32)
 
-    return mat, dist
+    depthmat = np.array(calibration.get_matrix("depth"), dtype= np.float32)
 
+    return mat, dist, depthmat
 
 def get_3d_bboxes():
     """
@@ -150,9 +189,11 @@ def get_3d_bboxes():
         name_to_3d_bboxes: Dictionary with the Linemod and Occlusion 3D model names as keys and the cuboids as values
 
     """
-    name_to_model_info = {"screw":          {"diameter": 37.2738, "min_x": -5.7735, "min_y": -5.0, "min_z": -17, "size_x": 11.547, "size_y": 10.0, "size_z": 34.0},
-                            "workpiece":    {"diameter": 51.9615, "min_x": -15.0, "min_y": -15.0, "min_z": -15.0, "size_x": 30.0, "size_y": 30.0, "size_z": 30.0}}
-        
+    name_to_model_info = {"M8x50":  {"diameter": 58.9428, "min_x": -6.5, "min_y": -6.4723, "min_z": -29.0, "size_x": 13.0, "size_y": 12.9445, "size_z": 58.0},
+                          "M8x25":  {"diameter": 34.6302, "min_x": -6.5, "min_y": -6.5, "min_z": -15.5, "size_x": 13.0, "size_y": 13.0, "size_z": 33.0},
+                          "M8x16":  {"diameter": 21.4, "min_x": -7.0, "min_y": -6.9837, "min_z": -10.2, "size_x": 14.0, "size_y": 13.9674, "size_z": 20.4},
+                          "M6x30":  {"diameter": 37.2738, "min_x": -5.7735, "min_y": -5.0, "min_z": -17.0, "size_x": 11.547, "size_y": 10.0, "size_z": 34.0}}
+    
     name_to_3d_bboxes = {name: convert_bbox_3d(model_info) for name, model_info in name_to_model_info.items()}
     
     return name_to_3d_bboxes
@@ -308,6 +349,64 @@ def postprocess(boxes, scores, labels, rotations, translations, scale, score_thr
     labels = labels[indices]
     
     return boxes, scores, labels, rotations, translations
+
+def savePCtoPLY(points, filepath):
+    if len(points)>0:
+        with open("pointcloud.txt", "x") as file:
+            for point in points:
+                file.write(str(point))
+        ply_vertices = np.empty(len(points), dtype=[("vertices", np.float32, (3, ))])
+        ply_vertices["vertices"] = points
+        pc = PlyElement.describe(ply_vertices, "vertex")
+        pc = PlyData([pc])
+        with open(filepath, 'wb') as f:
+            pc.write(f)
+
+def load_3D_models(class_to_name_dict, path_to_models):
+    """
+    Function that loads the 3d models from a directory. Models must be in the .ply format and each model must be named in the format "<name>.ply",
+    where <name> is the name it has inside the class_to_name dictionary.
+    Args:
+        class_to_name_dict - dictionary that associates each class to the corresponding model name
+        path_to_models - location where the .ply files are stored
+    Returns:
+        name_to_model_dict - dictionary that associates each name to a pointcloud that represents its 3D model
+    """
+
+    name_to_model_dict = {}
+
+    for key in class_to_name_dict.keys():
+        model_data = PlyData.read(os.path.join(path_to_models, class_to_name_dict[key] + ".ply"))
+                                  
+        vertex = model_data['vertex']
+        points = np.stack([vertex[:]['x'], vertex[:]['y'], vertex[:]['z']], axis = -1).astype(np.float32)
+        
+        #points = np.append(points.astype("float32"), np.zeros((len(points), 3), dtype=np.float32), axis=1)
+        points = points.astype("float32")
+        name_to_model_dict[class_to_name_dict[key]] = points
+
+    return name_to_model_dict
+
+def savePointcloud(xyz_points, filename):
+
+    assert xyz_points.shape[1] == 3,'Input XYZ points should be Nx3 float array'
+    
+    fid = open(filename,'w')
+    fid.write("ply\n")
+    fid.write("format binary_little_endian 1.0\n")
+    #fid.write("element vertex %d\n"%xyz_points.shape[0]")
+    fid.write("element vertex "+ str(xyz_points.shape[0]) + "\n")
+    fid.write("property float x\n")
+    fid.write("property float y\n")
+    fid.write("property float z\n")
+    fid.write("end_header\n")    # Write 3D points to .ply file
+    for i in range(xyz_points.shape[0]):
+        if xyz_points[i, 0] == 0 and xyz_points[i, 1] == 0 and xyz_points[i, 0] == 0:
+            continue
+        fid.write(str(xyz_points[i,0]) + " " + 
+                  str(xyz_points[i,1]) + " " +
+                  str(xyz_points[i,2]) + "\n")
+    fid.close()
 
 
 if __name__ == '__main__':

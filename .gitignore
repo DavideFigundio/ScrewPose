@@ -103,7 +103,6 @@ venv.bak/
 # mypy
 .mypy_cache/
 .idea/
-*.h5
 datasets/
 logs/
 checkpoints/

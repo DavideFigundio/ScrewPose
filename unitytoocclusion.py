@@ -15,8 +15,7 @@ def main():
     trainamount = 9000
     samplesPerCaptureFile = 150
     nameToIdDict = {"M8x50": 1, "M8x25": 2, "M8x16": 3, "M6x30": 4}
-
-    Cam_intrinsic = [640.0, 0., 640.0, 0., 640.0, 360.0, 0., 0., 1.]
+    Cam_intrinsic = [905., 0., 640., 0., 905., 360., 0.0, 0., 1.]
 
     deletePreviousGT(datalocationpath)
     
@@ -152,6 +151,8 @@ def deletePreviousGT(dirpath):
     os.remove(join(dirpath, "train.txt"))
     os.remove(join(dirpath, "valid_poses/1.txt"))
     os.remove(join(dirpath, "valid_poses/2.txt"))
+    os.remove(join(dirpath, "valid_poses/3.txt"))
+    os.remove(join(dirpath, "valid_poses/4.txt"))
 
 class ObjectData:
 

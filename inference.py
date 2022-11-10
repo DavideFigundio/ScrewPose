@@ -45,14 +45,14 @@ def main():
     allow_gpu_growth_memory()
 
     #input parameter
-    path_to_images = "./inferencing/"
+    path_to_images = "./verification/rgb/"
     image_extension = ".png"
     phi = 0
-    path_to_weights = "./checkpoints/103_epochs/screwdataset/phi_0_screwdataset_best_ADD-S.h5"
-    save_path = "./inferencing/results/" #where to save the images or None if the images should be displayed and not saved
-    # save_path = None
+    path_to_weights = "./checkpoints/screwpose_100_realsense/screwpose_100_realsense.h5"
+    save_path = "./verification/inferenced_rgb/" #where to save the images or None if the images should be displayed and not saved
     #class_to_name = {0: "ape", 1: "can", 2: "cat", 3: "driller", 4: "duck", 5: "eggbox", 6: "glue", 7: "holepuncher"} #Occlusion
-    class_to_name = {0: "screw"} #Linemod use a single class with a name of the Linemod objects
+    #class_to_name = {0: "screw"} #Linemod use a single class with a name of the Linemod objects
+    class_to_name = {0 : "M8x50", 1 : "M8x25", 2 : "M8x16", 3 : "M6x30"}
     score_threshold = 0.5
     translation_scale_norm = 1000.0
     draw_bbox_2d = False
@@ -60,8 +60,10 @@ def main():
     #for the linemod and occlusion trained models take this camera matrix and these 3d models. in case you trained a model on a custom dataset you need to take the camera matrix and 3d cuboids from your custom dataset.
     #camera_matrix = get_linemod_camera_matrix()
     #name_to_3d_bboxes = get_linemod_3d_bboxes()
-    camera_matrix = get_screwdataset_camera_matrix()
-    name_to_3d_bboxes = get_screwdataset_3d_bboxes()
+    #camera_matrix = get_screwdataset_camera_matrix()
+    #name_to_3d_bboxes = get_screwdataset_3d_bboxes()
+    camera_matrix = get_screwpose_camera_matrix()
+    name_to_3d_bboxes = get_screwpose_3d_bboxes()
     class_to_3d_bboxes = {class_idx: name_to_3d_bboxes[name] for class_idx, name in class_to_name.items()} 
     
     num_classes = len(class_to_name)
@@ -177,6 +179,18 @@ def get_screwdataset_3d_bboxes():
     
     return name_to_3d_bboxes
 
+def get_screwpose_camera_matrix():
+    return np.array([[905., 0., 640.], [0., 905., 360.], [0.0, 0., 1.]], dtype=np.float32)
+
+def get_screwpose_3d_bboxes():
+    name_to_model_info = {"M8x50":  {"diameter": 58.9428, "min_x": -6.5, "min_y": -6.4723, "min_z": -29.0, "size_x": 13.0, "size_y": 12.9445, "size_z": 58.0},
+                          "M8x25":  {"diameter": 34.6302, "min_x": -6.5, "min_y": -6.5, "min_z": -15.5, "size_x": 13.0, "size_y": 13.0, "size_z": 33.0},
+                          "M8x16":  {"diameter": 21.4, "min_x": -7.0, "min_y": -6.9837, "min_z": -10.2, "size_x": 14.0, "size_y": 13.9674, "size_z": 20.4},
+                          "M6x30":  {"diameter": 37.2738, "min_x": -5.7735, "min_y": -5.0, "min_z": -17.0, "size_x": 11.547, "size_y": 10.0, "size_z": 34.0}}
+
+    name_to_3d_bboxes = {name: convert_bbox_3d(model_info) for name, model_info in name_to_model_info.items()}
+    
+    return name_to_3d_bboxes
 
 def convert_bbox_3d(model_dict):
     """

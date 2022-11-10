@@ -1,0 +1,93 @@
+\frontmatter
+\pagenumbering{Roman}
+
+\usepackage{tabularx}
+\usepackage{booktabs}                                  % to write algorithms
+\usepackage{verbatim}                                         % to comment
+\usepackage{rotating}                  % rotates the figures to landscape
+\usepackage{anyfontsize}
+\usepackage{subfig}
+\usepackage{amsmath}
+\usepackage{mwe}
+\usepackage{siunitx}
+\sisetup{
+	range-phrase = {,},
+	range-units  = brackets
+}
+\usepackage{amsthm}
+\usepackage{epstopdf}
+\usepackage{amsfonts}    
+\usepackage{gensymb}                                     % for the letters of the sets
+\usepackage{graphicx}                                          % to insert images
+\usepackage[export]{adjustbox}
+\usepackage{xcolor}
+\usepackage[italian, english]{babel}							%language
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[dvips]{epsfig}
+\usepackage{bm}                                                  % bold formulas 
+\usepackage{fancyhdr}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{a4}
+\usepackage{frontespizio}
+\usepackage{hyperref}
+%\usepackage{float}
+\usepackage{appendix}
+\usepackage[nopostdot, nonumberlist, acronym]{glossaries}
+\usepackage[autostyle]{csquotes}
+\usepackage{floatrow}
+\usepackage{subfig}
+\usepackage[a4paper,twoside, inner =25mm, outer =25mm, top =30mm, bottom =30mm, bindingoffset =10mm,nomarginpar]{geometry}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\algnewcommand\algorithmicforeach{\textbf{for each}}
+\algdef{S}[FOR]{ForEach}[1]{\algorithmicforeach\ #1\ \algorithmicdo}
+\usepackage{kpfonts}
+\usepackage{stackengine,scalerel}
+\usepackage{calc}
+\usepackage[square, numbers, sort&compress]{natbib}
+\bibliographystyle{abbrvnat}
+\newlength\shlength
+\newcommand\longvec[2][0]{\ThisStyle{\setlength\shlength{#1\LMpt}%
+		\stackengine{-5.6\LMpt}{$\SavedStyle#2$}{\smash{$\kern\shlength%
+				\stackengine{\dimexpr 1.3pt+6.25\LMpt}{$\SavedStyle\mathchar"017E$}%
+				{\rule{\widthof{$\SavedStyle#2$}}{\dimexpr.1pt+.5\LMpt}\kern.4\LMpt}{O}{r}{F}{F}{L}\kern-\shlength$}}%
+		{O}{c}{F}{T}{S}}}
+\newcommand{\pushcode}[1][1]{\hskip\dimexpr#1\algorithmicindent\relax}
+
+\hypersetup{
+	colorlinks   = true, %Colours links instead of ugly boxes
+	urlcolor     = black, %Colour for external hyperlinks
+	linkcolor    = black, %Colour of internal links
+	citecolor   = black %Colour of citations
+}
+
+\DeclareMathOperator{\sgn}{sgn}
+\graphicspath{{./Images/}}
+
+\theoremstyle{plain}
+\newtheorem{teorema}{Teorema}
+\theoremstyle{definition}
+\newtheorem{definizione}{Definizione}
+\graphicspath{{Images/}}
+\DeclareGraphicsExtensions{.ps,.eps}
+\linespread{1.5}
+\setlength{\headheight}{15pt}
+\emergencystretch=2em
+
+% For theorems and definitions
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[chapter]
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[chapter]
+
+\setlength{\parskip}{\baselineskip}
+\setlength{\parindent}{0pt}
+
+
+
+
+

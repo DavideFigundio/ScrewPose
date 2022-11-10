@@ -53,10 +53,10 @@ from optimizer_callback import OptimizerCallback
 
 from custom_load_weights import custom_load_weights
 
-INITIAL_EPOCH = 10
-DEFAULT_EPOCHS = 50
+INITIAL_EPOCH = 60
+DEFAULT_EPOCHS = 40
 SAVE_FREQUENCY = 90000
-LEARNING_RATE = 1e-4    # INITIAL 1e-4
+LEARNING_RATE = 1e-7  # INITIAL 1e-4
 
 def parse_args(args):
     """
@@ -111,7 +111,6 @@ def parse_args(args):
     parser.add_argument('--workers', help = 'Number of generator workers.', type = int, default = 4)
     parser.add_argument('--max-queue-size', help = 'Queue length for multiprocessing workers in fit_generator.', type = int, default = 10)
     
-    print(vars(parser.parse_args(args)))
     return parser.parse_args(args)
 
 
@@ -211,7 +210,7 @@ def main(args = None):
         steps_per_epoch = args.steps,
         initial_epoch = INITIAL_EPOCH,
         epochs = args.epochs,
-        verbose = 1,
+        verbose = 2,
         callbacks = callbacks,
         workers = args.workers,
         use_multiprocessing = args.multiprocessing,
@@ -224,9 +223,9 @@ def allow_gpu_growth_memory():
         Set allow growth GPU memory to true
 
     """
-    config = tf.ConfigProto()
+    config = tf.compat.v1.ConfigProto()
     config.gpu_options.allow_growth = True
-    _ = tf.Session(config = config)
+    _ = tf.compat.v1.InteractiveSession(config = config)
 
 
 def create_callbacks(training_model, prediction_model, validation_generator, args):
@@ -360,7 +359,7 @@ def create_callbacks(training_model, prediction_model, validation_generator, arg
 
     # periodic saving of optimizer state
     callbacks.append(OptimizerCallback(
-        frequency = 1,
+        frequency = 10,
         save_path = args.snapshot_path
     ))
 
@@ -401,8 +400,8 @@ def create_generators(args):
             shuffle_dataset = False,
             shuffle_groups = False,
             rotation_representation = args.rotation_representation,
-            use_colorspace_augmentation = False,
-            use_6DoF_augmentation = False,
+            use_colorspace_augmentation = not args.no_color_augmentation,
+            use_6DoF_augmentation = not args.no_6dof_augmentation,
             **common_args
         )
     elif args.dataset_type == 'occlusion':
@@ -433,8 +432,8 @@ def create_generators(args):
         train_generator = ScrewDatasetGenerator(
             args.screwdataset_path,
             rotation_representation = args.rotation_representation,
-            use_colorspace_augmentation = False,
-            use_6DoF_augmentation = True,
+            use_colorspace_augmentation = args.no_color_augmentation,
+            use_6DoF_augmentation = not args.no_6dof_augmentation,
             **common_args
         )
 
@@ -455,8 +454,8 @@ def create_generators(args):
         train_generator = ScrewPoseGenerator(
             args.screwpose_path,
             rotation_representation = args.rotation_representation,
-            use_colorspace_augmentation = not args.no_color_augmentation,
-            use_6DoF_augmentation = not args.no_6dof_augmentation,
+            use_colorspace_augmentation = True,
+            use_6DoF_augmentation = True,
             **common_args
         )
 

@@ -5,17 +5,17 @@ import json
 from pyquaternion import Quaternion
 
 UNDISTORT = False
-SAVE_VERIFICATION = True
+SAVE_VERIFICATION = False
 
 # Takes a directory of images and for each image saves all poses of a chosed ArUco marker in a json file for use in Unity.
 def main():
-    dirpath = "../background/realsense"  # Path to image directory
-    # dirpath = "../background/azure"
+    #dirpath = "../background/realsense"  # Path to image directory
+    dirpath = "../background/azure"
 
     distdirpath = "../background_undistorted/"
     verpath = "../verification/"
-    jsonFile = "poses_rs.json"     # Name of json file
-    # jsonFile = "poses_azure.json"
+    #jsonFile = "poses_rs.json"     # Name of json file
+    jsonFile = "poses_azure.json"
     markerLength = 0.04         # Marker size [m]
     markerID = 23               # Reference marker ID
 
@@ -23,15 +23,15 @@ def main():
     arcucoParams = cv2.aruco.DetectorParameters_create()
 
     # Camera parameters for Azure Kinect @720p
-    # cameraMatrix = np.array([[612.6460571289062, 0., 638.0296020507812], [0., 612.36376953125, 367.6560363769531], [0., 0., 1.]], dtype = np.float32)
-    # distortionMatrix = np.array([0.5059323906898499, -2.6153206825256348, 0.000860791013110429, -0.0003529376117512584, 1.4836950302124023, 0.3840336799621582, -2.438732385635376, 1.4119256734848022], dtype = np.float32)
+    cameraMatrix = np.array([[612.6460571289062, 0., 638.0296020507812], [0., 612.36376953125, 367.6560363769531], [0., 0., 1.]], dtype = np.float32)
+    distortionMatrix = np.array([0.5059323906898499, -2.6153206825256348, 0.000860791013110429, -0.0003529376117512584, 1.4836950302124023, 0.3840336799621582, -2.438732385635376, 1.4119256734848022], dtype = np.float32)
 
     # Camera parameters for Intel Realsense @ 720p
-    cameraMatrix = np.array([[904.9464, 0., 638.6059], [0.,  905.1834, 363.14758], [0., 0., 1.]], dtype = np.float32)
-    distortionMatrix = np.array([0., 0., 0., 0., 0.], dtype = np.float32)
+    #cameraMatrix = np.array([[904.9464, 0., 638.6059], [0.,  905.1834, 363.14758], [0., 0., 1.]], dtype = np.float32)
+    #distortionMatrix = np.array([0., 0., 0., 0., 0.], dtype = np.float32)
 
     posedict = dict()
-    total = 950
+    total = 956
     for i in range(total):
         imgname = str(i) + ".png"
         print("Currently reading: " + imgname, end='\r') #

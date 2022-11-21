@@ -39,7 +39,7 @@ import cv2
 from generators.linemod import LineModGenerator
 from generators.occlusion import OcclusionGenerator
 from generators.screwpose import ScrewPoseGenerator
-from generators.assembly import AssemblyGenerator
+from generators.buttonpose import ButtonPoseGenerator
 from utils.visualization import draw_annotations, draw_boxes
 from utils.anchors import anchors_for_shape, compute_gt_annotations
 
@@ -61,8 +61,8 @@ def parse_args(args):
     screwdataset_parser = subparsers.add_parser('screwpose')
     screwdataset_parser.add_argument('screwpose_path', help = 'Path to dataset directory (ie. /tmp/occlusion).')
 
-    screwdataset_parser = subparsers.add_parser('assembly')
-    screwdataset_parser.add_argument('assembly_path', help = 'Path to dataset directory (ie. /tmp/occlusion).')
+    screwdataset_parser = subparsers.add_parser('buttonpose')
+    screwdataset_parser.add_argument('buttonpose_path', help = 'Path to dataset directory (ie. /tmp/occlusion).')
     
     
     parser.add_argument('--rotation-representation', help = 'Which representation of the rotation should be used. Choose from "axis_angle", "rotation_matrix" and "quaternion"', default = 'axis_angle')
@@ -141,9 +141,9 @@ def create_generator(args):
             phi = args.phi,
         )
 
-    elif args.dataset_type == 'assembly':
-        generator = AssemblyGenerator(
-            args.assembly_path,
+    elif args.dataset_type == 'buttonpose':
+        generator = ButtonPoseGenerator(
+            args.buttonpose_path,
             train = True,
             shuffle_dataset = False,
             shuffle_groups = False,

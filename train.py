@@ -53,10 +53,10 @@ from optimizer_callback import OptimizerCallback
 
 from custom_load_weights import custom_load_weights
 
-INITIAL_EPOCH = 60
-DEFAULT_EPOCHS = 40
-SAVE_FREQUENCY = 90000
-LEARNING_RATE = 1e-7  # INITIAL 1e-4
+INITIAL_EPOCH = 0
+TOTAL_EPOCHS = 15
+SAVE_FREQUENCY = 5 # Interval in epochs between saves
+LEARNING_RATE = 1e-4  # Initial 1e-4, change to correct value when interrupting and restarting
 
 def parse_args(args):
     """
@@ -77,11 +77,11 @@ def parse_args(args):
     screwdataset_parser = subparsers.add_parser('screwdataset')
     screwdataset_parser.add_argument('screwdataset_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed/).')
 
-    assembly_parser = subparsers.add_parser('assembly')
-    assembly_parser.add_argument('assembly_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed/).')
-
     screwpose_parser = subparsers.add_parser('screwpose')
     screwpose_parser.add_argument('screwpose_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed/).')
+
+    buttonpose_parser = subparsers.add_parser('buttonpose')
+    buttonpose_parser.add_argument('buttonpose_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed/).')
 
     parser.add_argument('--rotation-representation', help = 'Which representation of the rotation should be used. Choose from "axis_angle", "rotation_matrix" and "quaternion"', default = 'axis_angle')    
 
@@ -95,8 +95,8 @@ def parse_args(args):
     parser.add_argument('--no-6dof-augmentation', help = 'Do not use 6DoF augmentation', action = 'store_true', default = False)
     parser.add_argument('--phi', help = 'Hyper parameter phi', default = 0, type = int, choices = (0, 1, 2, 3, 4, 5, 6))
     parser.add_argument('--gpu', help = 'Id of the GPU to use (as reported by nvidia-smi).')
-    parser.add_argument('--epochs', help = 'Number of epochs to train.', type = int, default = DEFAULT_EPOCHS)
-    parser.add_argument('--steps', help = 'Number of steps per epoch.', type = int, default = 2250)
+    parser.add_argument('--epochs', help = 'Number of epochs to train.', type = int, default = TOTAL_EPOCHS)
+    parser.add_argument('--steps', help = 'Number of steps per epoch.', type = int, default = 4500)
     parser.add_argument('--snapshot-path', help = 'Path to store snapshots of models during training', default = os.path.join("checkpoints", date_and_time))
     parser.add_argument('--tensorboard-dir', help = 'Log directory for Tensorboard output', default = os.path.join("logs", date_and_time))
     parser.add_argument('--no-snapshots', help = 'Disable saving snapshots.', dest = 'snapshots', action = 'store_false')
@@ -282,18 +282,18 @@ def create_callbacks(training_model, prediction_model, validation_generator, arg
             
         metric_to_monitor = "ADD-S"
         mode = "max"
-    elif args.dataset_type == "assembly":
-        snapshot_path = os.path.join(args.snapshot_path, "assembly")
+    elif args.dataset_type == "screwpose":
+        snapshot_path = os.path.join(args.snapshot_path)
         if args.validation_image_save_path:
-            save_path = os.path.join(args.validation_image_save_path, "assembly")
+            save_path = os.path.join(args.validation_image_save_path)
         else:
             save_path = args.validation_image_save_path
         if args.tensorboard_dir:
-            tensorboard_dir = os.path.join(args.tensorboard_dir, "assembly")
+            tensorboard_dir = os.path.join(args.tensorboard_dir)
             
         metric_to_monitor = "ADD(-S)"
         mode = "max"
-    elif args.dataset_type == "screwpose":
+    elif args.dataset_type == "buttonpose":
         snapshot_path = os.path.join(args.snapshot_path)
         if args.validation_image_save_path:
             save_path = os.path.join(args.validation_image_save_path)
@@ -342,7 +342,7 @@ def create_callbacks(training_model, prediction_model, validation_generator, arg
                                                      save_best_only = False,
                                                      monitor = metric_to_monitor,
                                                      mode = mode,
-                                                     save_freq = SAVE_FREQUENCY)
+                                                     save_freq = SAVE_FREQUENCY * args.steps * args.batch_size)
         callbacks.append(checkpoint)
 
     # learning rate reduction if ADD(-S) is stagnating
@@ -359,7 +359,7 @@ def create_callbacks(training_model, prediction_model, validation_generator, arg
 
     # periodic saving of optimizer state
     callbacks.append(OptimizerCallback(
-        frequency = 10,
+        frequency = SAVE_FREQUENCY,
         save_path = args.snapshot_path
     ))
 
@@ -470,11 +470,11 @@ def create_generators(args):
             use_6DoF_augmentation = False,
             **common_args
         )
-    elif args.dataset_type == 'assembly':
-        from generators.assembly import AssemblyGenerator
+    elif args.dataset_type == 'buttonpose':
+        from generators.buttonpose import ButtonPoseGenerator
         print("Creating the training generator...")
-        train_generator = AssemblyGenerator(
-            args.assembly_path,
+        train_generator = ButtonPoseGenerator(
+            args.buttonpose_path,
             rotation_representation = args.rotation_representation,
             use_colorspace_augmentation = not args.no_color_augmentation,
             use_6DoF_augmentation = not args.no_6dof_augmentation,
@@ -482,8 +482,8 @@ def create_generators(args):
         )
 
         print("Creating the validation generator...")
-        validation_generator = AssemblyGenerator(
-            args.assembly_path,
+        validation_generator = ButtonPoseGenerator(
+            args.buttonpose_path,
             train = False,
             shuffle_dataset = False,
             shuffle_groups = False,

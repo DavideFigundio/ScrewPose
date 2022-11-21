@@ -37,7 +37,7 @@ def main():
     if occlusionDict:
         correctMasks(datalocationpath, occlusionDict, nameToMaskDict)
 
-    print("All tasks finished.")
+    print("All tasks finished.                              ")
 
 def createLabels(datalocationpath, samplesPerCaptureFile, numberOfSamples, Cam_intrinsic, nameToIdDict, occlusionDict):
     print("Creating ground truth labels...")
@@ -60,7 +60,7 @@ def createLabels(datalocationpath, samplesPerCaptureFile, numberOfSamples, Cam_i
                 jsonData = json.load(file)    
 
                 for i in range(0, len(jsonData['captures'])):
-                    print("Progress: " + str(j + 1) + "/" + str(numberOfSamples), end='\r')
+                    print("Progress: " + str(j) + "/" + str(numberOfSamples), end='\r')
 
                     for annotation in jsonData['captures'][i]['annotations']:
 
@@ -82,13 +82,14 @@ def createLabels(datalocationpath, samplesPerCaptureFile, numberOfSamples, Cam_i
                                 imageData[name].translation = [1000*translationdata['x'], -1000*translationdata['y'], 1000*translationdata['z']]
                                 imageData[name].rotation = convertQuaternionToMatrix(rotationdata['x'], rotationdata['y'], rotationdata['z'], rotationdata['w'])
 
-                    if j in occlusionDict:
-                        imageData["unknownbutton"].present = True
-                        imageData["unknownbutton"].rotation = imageData[occlusionDict[j]].rotation
-                        imageData["unknownbutton"].translation = imageData[occlusionDict[j]].translation
-                        imageData["unknownbutton"].bbox = imageData[occlusionDict[j]].bbox
+                    if j in occlusionDict.keys():
+                        if imageData[occlusionDict[j]].present:
+                            imageData["unknownbutton"].present = True
+                            imageData["unknownbutton"].rotation = imageData[occlusionDict[j]].rotation
+                            imageData["unknownbutton"].translation = imageData[occlusionDict[j]].translation
+                            imageData["unknownbutton"].bbox = imageData[occlusionDict[j]].bbox
 
-                        imageData[occlusionDict[j]].clear()
+                            imageData[occlusionDict[j]].clear()
 
 
                     datalist = []
@@ -106,7 +107,7 @@ def createLabels(datalocationpath, samplesPerCaptureFile, numberOfSamples, Cam_i
     print("Creating info labels...")
     with open(datalocationpath + 'info.yml', 'w') as ymlfile:
         for i in range(0, numberOfSamples):
-            print("Progress: " + str(i + 1) + "/" + str(numberOfSamples), end='\r')
+            print("Progress: " + str(i) + "/" + str(numberOfSamples), end='\r')
             data = {i:{'cam_K':Cam_intrinsic, 'depth_scale':1.0}}
             yaml.dump(data, ymlfile)
 
@@ -160,7 +161,7 @@ def renameImages(datalocationpath, numberOfSamples):
     print('Renaming training images...')
     if(os.path.exists(join(datalocationpath, "rgb/rgb_2.png"))):
         for i in range(0, numberOfSamples):
-            print("Progress: " + str(i + 1) + "/" + str(numberOfSamples), end='\r')
+            print("Progress: " + str(i) + "/" + str(numberOfSamples), end='\r')
             os.rename(datalocationpath + "rgb/rgb_" + str(i + 2) + ".png", datalocationpath + 'rgb/' + str(i) + '.png')
             os.rename(datalocationpath + "merged_masks/segmentation_" + str(i + 2) + ".png", datalocationpath + 'merged_masks/' + str(i) + '.png')
     else:
@@ -204,7 +205,7 @@ def loadOcclusionData(filepath):
         with open(filepath, 'r') as file:
             for line in file:
                 (key, val) = line.split()
-                occlusionDict[key] = val
+                occlusionDict[int(key)] = val
     else:
         print("No occlusion data found.")
     

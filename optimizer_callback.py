@@ -20,7 +20,7 @@ class OptimizerCallback(keras.callbacks.Callback):
         super().__init__()
 
     def on_epoch_end(self, epoch, logs=None):
-        if epoch % self.frequency == 0:
+        if (epoch + 1) % self.frequency == 0:
             print("Getting optimizer weights...")
             symbolic_weights = getattr(self.model.optimizer, 'weights')
             weight_values = keras.backend.batch_get_value(symbolic_weights)

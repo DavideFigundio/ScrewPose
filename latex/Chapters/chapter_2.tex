@@ -96,7 +96,7 @@ While refinement methods achieve remarkable performance, they have two main down
 
 \subsection{Conclusions on Learning Approaches}
 
-Data-driven models based on deep learning are more widely applicated than non-learning-based models, as a large variety of approaches exists, and each approach brings its own distinct advantages. When choosing a model, special attention must be given to the application the model is destined for. For single object pose estimation, especially in highly occluded enviroments, 2D-3D methods are the best choice. For multi-object pose estimation, direct estimation methods provide greater computational efficency. Whenever greater accuracy is required, pose refinement algorithms offer the best results.
+Data-driven models based on deep learning are more widely applied than non-learning-based models, as a large variety of approaches exists, and each approach brings its own distinct advantages. When choosing a model, special attention must be given to the application the model is destined for. For single object pose estimation, especially in highly occluded enviroments, 2D-3D methods are the best choice. For multi-object pose estimation, direct estimation methods provide greater computational efficency. Whenever greater accuracy is required, pose refinement algorithms offer the best results.
 
 \section{EfficientPose}
 
@@ -106,11 +106,11 @@ Data-driven models based on deep learning are more widely applicated than non-le
     \caption{Overview of the EfficientDet architecture. BiFPN layers and subnet layers may be repeated multiple times according to resource constraints.}
 \end{figure}
 
-EfficientPose was chosen as the starting point for this thesis as it boasts state-of-the-art results while maintaining relative simplicity and low computational cost. It was designed with multi-object estimation in mind, which is especially significant, as other approaches do not scale well with the number of total detections.
+EfficientPose was chosen as the starting point for this thesis as it boasts state-of-the-art results while maintaining relative simplicity and low computational cost. It is designed with multi-object estimation in mind, which is especially significant, as other approaches do not scale well with the number of total detections.
 
 Similarly to Deep-6DPose (previously mentioned in section \ref*{ss:directestimation}), it is an end-to-end direct 6D pose estimation approach that extends the functionality of a 2D network. While Deep-6D extends the segmentation network Mask-R-CNN, EfficientPose extends Google's object classification network EfficientDet\cite{EfficientDet}, which in turn builds on Google's backbone network EfficientNet\cite{EfficientNet}. We will briefly examine these two network families.
 
-We specify "families," as both networks are based on the concept of scalability, changing network dimensions using a single hyperparameter $\phi$. For $\phi = 0$, we have a base network with minimum depth, width and resolution in an optimal ratio. By increasing the value of $\phi$, we can scale up these dimensions while mainining this ratio, thus obtaining better performance than if we had just increased the depth, width or resolution of the network individually. The results are visible in figure \ref{fig:effNetPerformance} for EfficientNet and \ref{fig:effDetPerformance} for EfficientDet: it is obvious that they both have potentially much better performance than their alternatives while maintaining significantly lower computational costs.
+Both of these parent networks are based on the concept of scalability: the possibility of increasing network dimensions to achieve better performance in exchange for greater computational cost. These approaches scale using a single hyperparameter, $\phi$. For $\phi = 0$, we have a base network with minimum depth, width and resolution in an optimal ratio. By increasing the value of $\phi$, we can scale up these dimensions while mainining the ratio, thus obtaining better performance than if we had just increased the depth, width or resolution of the network individually. The results are visible in figure \ref{fig:effNetPerformance} for EfficientNet and \ref{fig:effDetPerformance} for EfficientDet: it is obvious that they both have potentially much better performance than their alternatives while maintaining significantly lower computational costs.
 
 EfficientNet is designed using neural architecture search\cite{NAS} to provide optimal structure for the baseline, while EfficientDet expands upon this backbone by introducing a feature pyramid network\cite{FPN} (FPN). FPNs are built for multi-scale feature fusion, combining information contained in low resolution, semantically strong features with information containted in high resolution, semantically weak features. EfficientDet implements its own version of FPN, called bi-directional FPN, where top-down and bottom-up aggregation paths are then repeated a number of times dependant on the chosen $\phi$. The outputs of the Bi-FPN are then fed into two fully connected networks that perform class and bounding box prediction.
 
@@ -126,7 +126,7 @@ EfficientNet is designed using neural architecture search\cite{NAS} to provide o
     \caption{Performance of the EfficientNet and EfficientDet families compared to other approaches.}
 \end{figure}
 
-The resulting network is single-shot object detector, which sets it apart from previously mentioned approaches such as Mask-R-CNN. These employ a two phase approach, with an initial region proposal step followed by the final object detection. By instead applying a single step approach, EfficientDet is much simpler and computationally efficient.
+The resulting network is a single-shot object detector, which sets it apart from previously mentioned approaches such as Mask-R-CNN, as these employ a two phase approach, with an initial region proposal step followed by the final object detection. By instead applying a single step approach, EfficientDet is much simpler and computationally efficient.
 
 EfficientPose's expansion on this architecture is the addition of two additional subnets that predict translation and rotation, in parallel with the class and box networks. Since these networks are relatively small, additional computational costs are minimal.
 
@@ -188,13 +188,13 @@ Thus datasets are fundamental for both training and evaluation of a pose estimat
 
 The LINEMOD\cite{linemod} dataset is the most popular dataset for training and evaluating 6D pose estimation methods. It is often used as a benchmark to compare different approaches.
 
-The dataset contains images and annotations for 13 different objects, placed in 13 different cluttered scenes. For each object, around 1200 images are provided with associated ground truths, including separate rotations and translations. Furthermore, for each object a colored 3D model is provided. The dataset also contains depth images corresponding to each scene, but since our network only takes RGB input, we are not interested in these.
+The dataset contains color images, depth images and annotations for 13 different objects, placed in 13 different cluttered scenes. For each object, around 1200 images are provided with associated ground truths, including separate rotations and translations. Furthermore, for each object a colored 3D model is provided.
 
-LINEMOD was generated by sticking the tracked objects to the center of a board surrounded by markers. Since the position of each object on the board is known, and the marker pose relative to the camera can be easily and robustly estimated as described in section \ref{s:notlearningbasedmethods}, the final pose of the object can be computed with excellent accuracy. Furthermore, since the images were taken in a uniformly divided hemispherical space around the center board, each object has images comprising a good distribution of poses from multiple orientations.
+LINEMOD was generated by securing the tracked objects to the center of a board surrounded by markers. Since the position of each object on the board is known, and the marker pose relative to the camera can be easily and robustly estimated as described in section \ref{s:notlearningbasedmethods}, the final pose of the object can be computed with excellent accuracy. Furthermore, since the images were taken in a uniformly divided hemispherical space around the center board, each object has images comprising a good distribution of poses from multiple orientations.
 
 \subsection{Occlusion LINEMOD}
 
-Occlusion LINEMOD\cite{occlusionlinemod} is a multi-object pose estimation dataset that builds on a subset of LINEMOD; in particual it only uses images from one scene. It differs from the base dataset in two aspects: first, all 13 objects are annotated in every scene, and second, objects often present heavy occlusion due to clutter and positioning. This makes it extremely challenging when compared to vanilla LINEMOD.
+Occlusion LINEMOD\cite{occlusionlinemod} is a multi-object pose estimation dataset that builds on a subset of LINEMOD; in particual it only uses images from one scene. It differs from the base dataset in two aspects: first, all 13 objects are annotated in every scene, and second, objects often present heavy occlusion due to clutter and positioning. This makes it extremely challenging when compared to basic LINEMOD.
 
 Occlusion has been used mainly to train RGB-D models, but some pure RGB approaches \cite{PVNet}\cite{PoseCNN} have also used it as a test dataset, while employing LINEMOD for training. EfficientPose, being a multiple object detection network, employs Occlusion for both training and testing one of its models.
 

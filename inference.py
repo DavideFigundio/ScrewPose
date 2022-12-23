@@ -1,99 +1,75 @@
-"""
-EfficientPose (c) by Steinbeis GmbH & Co. KG für Technologietransfer
-Haus der Wirtschaft, Willi-Bleicher-Straße 19, 70174 Stuttgart, Germany
-Yannick Bukschat: yannick.bukschat@stw.de
-Marcus Vetter: marcus.vetter@stw.de
-
-EfficientPose is licensed under a
-Creative Commons Attribution-NonCommercial 4.0 International License.
-
-The license can be found in the LICENSE file in the root directory of this source tree
-or at http://creativecommons.org/licenses/by-nc/4.0/.
----------------------------------------------------------------------------------------------------------------------------------
----------------------------------------------------------------------------------------------------------------------------------
-
-Based on:
-
-Keras EfficientDet implementation (https://github.com/xuannianz/EfficientDet) licensed under the Apache License, Version 2.0
----------------------------------------------------------------------------------------------------------------------------------
-The official EfficientDet implementation (https://github.com/google/automl) licensed under the Apache License, Version 2.0
----------------------------------------------------------------------------------------------------------------------------------
-EfficientNet Keras implementation (https://github.com/qubvel/efficientnet) licensed under the Apache License, Version 2.0
----------------------------------------------------------------------------------------------------------------------------------
-Keras RetinaNet implementation (https://github.com/fizyr/keras-retinanet) licensed under the Apache License, Version 2.0
-"""
+'''
+Script for testing live inferences.
+'''
 
 import cv2
 import numpy as np
 import os
-from tqdm import tqdm
 import math
-
 import tensorflow as tf
-
+import json
 from model import build_EfficientPose
 from utils import preprocess_image
 from utils.visualization import draw_detections
 
+CLASS_TO_NAME = {0 : "2-slot", 1 : "3-slot", 2 : "mushroombutton", 3 : "arrowbutton", 4 : "redbutton", 5 : "unknownbutton"}
 
 def main():
     """
-    Run EfficientPose in inference mode on all images in a given directory.
+    Run EfficientPose in inference mode.
     
     """
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     allow_gpu_growth_memory()
 
-    #input parameter
-    path_to_images = "./verification/rgb/"
-    image_extension = ".png"
+    #input parameters
     phi = 0
-    path_to_weights = "./checkpoints/screwpose_100_realsense/screwpose_100_realsense.h5"
-    save_path = "./verification/inferenced_rgb/" #where to save the images or None if the images should be displayed and not saved
-    #class_to_name = {0: "ape", 1: "can", 2: "cat", 3: "driller", 4: "duck", 5: "eggbox", 6: "glue", 7: "holepuncher"} #Occlusion
-    #class_to_name = {0: "screw"} #Linemod use a single class with a name of the Linemod objects
-    class_to_name = {0 : "M8x50", 1 : "M8x25", 2 : "M8x16", 3 : "M6x30"}
+
+    path_to_weights = "./weights/buttonpose.h5"
+    path_to_color_images = "./datasets/ButtonPose/data/rgb/"
+    start_number = 18000
+    total = 20000
+
+    class_to_name = CLASS_TO_NAME
     score_threshold = 0.5
-    translation_scale_norm = 1000.0
+    translation_scale_norm = 1000.0     # conversion factor from m to mm
     draw_bbox_2d = False
     draw_name = False
-    #for the linemod and occlusion trained models take this camera matrix and these 3d models. in case you trained a model on a custom dataset you need to take the camera matrix and 3d cuboids from your custom dataset.
-    #camera_matrix = get_linemod_camera_matrix()
-    #name_to_3d_bboxes = get_linemod_3d_bboxes()
-    #camera_matrix = get_screwdataset_camera_matrix()
-    #name_to_3d_bboxes = get_screwdataset_3d_bboxes()
-    camera_matrix = get_screwpose_camera_matrix()
-    name_to_3d_bboxes = get_screwpose_3d_bboxes()
+
+    capturedata = {}
+    
+    name_to_3d_bboxes = get_3d_bboxes()
     class_to_3d_bboxes = {class_idx: name_to_3d_bboxes[name] for class_idx, name in class_to_name.items()} 
-    
     num_classes = len(class_to_name)
-    
-    if not os.path.exists(path_to_images):
-        print("Error: the given path to the images {} does not exist!".format(path_to_images))
-        return
-    
-    image_list = [filename for filename in os.listdir(path_to_images) if image_extension in filename]
-    print("\nInfo: found {} image files".format(len(image_list)))   
-    
+
     #build model and load weights
     model, image_size = build_model_and_load_weights(phi, num_classes, score_threshold, path_to_weights)
+
+    camera_matrix = get_camera_params()
     
+    cv2.namedWindow('ScrewPose', cv2.WINDOW_NORMAL)
+
     #inferencing
-    for image_filename in tqdm(image_list):
-        #load image
-        image_path = os.path.join(path_to_images, image_filename)
-        image = cv2.imread(image_path)
-        original_image = image.copy()
+    print("\nStarting inference...\n")
+
+
+    for i in range(start_number, total):
+        color_image = cv2.imread(os.path.join(path_to_color_images, str(i) + ".png"))
         
-        #preprocessing
-        input_list, scale = preprocess(image, image_size, camera_matrix, translation_scale_norm)
+        # Preprocessing
+        original_image = color_image.copy()
+        input_list, scale = preprocess(color_image, image_size, camera_matrix, translation_scale_norm)
         
-        #predict
+        # Pose inference with EfficientPose
         boxes, scores, labels, rotations, translations = model.predict_on_batch(input_list)
         
-        #postprocessing
+        # Postprocessing
         boxes, scores, labels, rotations, translations = postprocess(boxes, scores, labels, rotations, translations, scale, score_threshold)
-        
+
+        capture = parse_data(labels, rotations, translations, class_to_name)
+        capturedata[i] = capture
+
+        # Plotting detections and displaying the image
         draw_detections(original_image,
                         boxes,
                         scores,
@@ -105,19 +81,19 @@ def main():
                         label_to_name = class_to_name,
                         draw_bbox_2d = draw_bbox_2d,
                         draw_name = draw_name)
-        
-        if save_path is None:
-            #display image with predictions
-            cv2.imshow('image with predictions', original_image)
-            cv2.waitKey(0)
-        else:
-            #only save images to the given path
-            os.makedirs(save_path, exist_ok = True)
-            cv2.imwrite(os.path.join(save_path, image_filename.replace(image_extension, "_predicted" + image_extension)), original_image)
-            
-            
+		
+		
+        cv2.imshow("ScrewPose", original_image)
+		
+		# Press q key to stop
+        if cv2.waitKey(1) == ord('q'): 
+            break
+    
+    with open("capturedata.json", 'w') as jsonfile:
+        json.dump(capturedata, jsonfile)
+
 def allow_gpu_growth_memory():
-    """
+    """image_size
         Set allow growth GPU memory to true
 
     """
@@ -125,72 +101,36 @@ def allow_gpu_growth_memory():
     config.gpu_options.allow_growth = True
     _ = tf.Session(config = config)
 
-
-def get_linemod_camera_matrix():
+def get_camera_params():
     """
+    Gets camera parameters.
+    Args:
+        print: bool, if true prints the calibration parameters when executed.
     Returns:
-        The Linemod and Occlusion 3x3 camera matrix
-
+        mat: 3x3 camera intrinsic matrix of the type:
+            |fx  0   cx|
+            |0   fy  cy|
+            |0   0    1|
     """
-    return np.array([[572.4114, 0., 325.2611], [0., 573.57043, 242.04899], [0., 0., 1.]], dtype = np.float32)
+    return np.array([[640.0, 0.,  640.0], [0., 640.0, 360.0], [0.0, 0., 1.]], dtype=np.float32)
 
-
-def get_linemod_3d_bboxes():
-    """
-    Returns:
-        name_to_3d_bboxes: Dictionary with the Linemod and Occlusion 3D model names as keys and the cuboids as values
-
-    """
-    name_to_model_info = {"ape":            {"diameter": 102.09865663, "min_x": -37.93430000, "min_y": -38.79960000, "min_z": -45.88450000, "size_x": 75.86860000, "size_y": 77.59920000, "size_z": 91.76900000},
-                            "benchvise":    {"diameter": 247.50624233, "min_x": -107.83500000, "min_y": -60.92790000, "min_z": -109.70500000, "size_x": 215.67000000, "size_y": 121.85570000, "size_z": 219.41000000},
-                            "cam":          {"diameter": 172.49224865, "min_x": -68.32970000, "min_y": -71.51510000, "min_z": -50.24850000, "size_x": 136.65940000, "size_y": 143.03020000, "size_z": 100.49700000},
-                            "can":          {"diameter": 201.40358597, "min_x": -50.39580000, "min_y": -90.89790000, "min_z": -96.86700000, "size_x": 100.79160000, "size_y": 181.79580000, "size_z": 193.73400000},
-                            "cat":          {"diameter": 154.54551808, "min_x": -33.50540000, "min_y": -63.81650000, "min_z": -58.72830000, "size_x": 67.01070000, "size_y": 127.63300000, "size_z": 117.45660000},
-                            "driller":      {"diameter": 261.47178102, "min_x": -114.73800000, "min_y": -37.73570000, "min_z": -104.00100000, "size_x": 229.47600000, "size_y": 75.47140000, "size_z": 208.00200000},
-                            "duck":         {"diameter": 108.99920102, "min_x": -52.21460000, "min_y": -38.70380000, "min_z": -42.84850000, "size_x": 104.42920000, "size_y": 77.40760000, "size_z": 85.69700000},
-                            "eggbox":       {"diameter": 164.62758848, "min_x": -75.09230000, "min_y": -53.53750000, "min_z": -34.62070000, "size_x": 150.18460000, "size_y": 107.07500000, "size_z": 69.24140000},
-                            "glue":         {"diameter": 175.88933422, "min_x": -18.36050000, "min_y": -38.93300000, "min_z": -86.40790000, "size_x": 36.72110000, "size_y": 77.86600000, "size_z": 172.81580000},
-                            "holepuncher":  {"diameter": 145.54287471, "min_x": -50.44390000, "min_y": -54.24850000, "min_z": -45.40000000, "size_x": 100.88780000, "size_y": 108.49700000, "size_z": 90.80000000},
-                            "iron":         {"diameter": 278.07811733, "min_x": -129.11300000, "min_y": -59.24100000, "min_z": -70.56620000, "size_x": 258.22600000, "size_y": 118.48210000, "size_z": 141.13240000},
-                            "lamp":         {"diameter": 282.60129399, "min_x": -101.57300000, "min_y": -58.87630000, "min_z": -106.55800000, "size_x": 203.14600000, "size_y": 117.75250000, "size_z": 213.11600000},
-                            "phone":        {"diameter": 212.35825148, "min_x": -46.95910000, "min_y": -73.71670000, "min_z": -92.37370000, "size_x": 93.91810000, "size_y": 147.43340000, "size_z": 184.74740000}}
-        
-    name_to_3d_bboxes = {name: convert_bbox_3d(model_info) for name, model_info in name_to_model_info.items()}
-    
-    return name_to_3d_bboxes
-
-def get_screwdataset_camera_matrix():
-    """
-    Returns:
-        The screwdataset 3x3 camera matrix
-
-    """
-    return np.array([[633.96, 0., 320], [0., 633.96, 240], [0., 0., 1.]], dtype = np.float32)
-
-def get_screwdataset_3d_bboxes():
+def get_3d_bboxes():
     """
     Returns:
         name_to_3d_bboxes: Dictionary with the Linemod and Occlusion 3D model names as keys and the cuboids as values
 
     """
-    name_to_model_info = {"screw": {'diameter': 37.2738, 'min_x': -5.7735, 'min_y': -5.0, 'min_z': -17.0, 'size_x': 11.547, 'size_y': 10.0, 'size_z': 34.0}}
-        
+    name_to_model_info = {"2-slot": {"diameter": 137.1, "min_x": -34.0 , "min_y": -52.7935, "min_z": -27.5, "size_x": 68.0, "size_y": 105.5870, "size_z": 55.0},
+                          "3-slot": {"diameter": 161.36, "min_x": -34.0 , "min_y": -67.801, "min_z": -27.5, "size_x": 68.0, "size_y": 135.602, "size_z": 55.0},
+                          "mushroombutton": {"diameter": 59.698, "min_x": -24.95, "min_y": -20.0, "min_z": -20.0, "size_x": 51.9, "size_y": 40.0, "size_z": 40.0},
+                          "arrowbutton": {"diameter": 35.7, "min_x": -13.3249, "min_y": -14.2494, "min_z": -14.2494, "size_x": 26.65, "size_y": 28.5, "size_z": 28.5},
+                          "redbutton": {"diameter": 35.7, "min_x": -13.3249, "min_y": -14.2494, "min_z": -14.2494, "size_x": 26.65, "size_y": 28.5, "size_z": 28.5},
+                          "unknownbutton":  {"diameter": 35.7, "min_x": -13.3249, "min_y": -14.2494, "min_z": -14.2494, "size_x": 26.65, "size_y": 28.5, "size_z": 28.5}}
+    
     name_to_3d_bboxes = {name: convert_bbox_3d(model_info) for name, model_info in name_to_model_info.items()}
     
     return name_to_3d_bboxes
 
-def get_screwpose_camera_matrix():
-    return np.array([[905., 0., 640.], [0., 905., 360.], [0.0, 0., 1.]], dtype=np.float32)
-
-def get_screwpose_3d_bboxes():
-    name_to_model_info = {"M8x50":  {"diameter": 58.9428, "min_x": -6.5, "min_y": -6.4723, "min_z": -29.0, "size_x": 13.0, "size_y": 12.9445, "size_z": 58.0},
-                          "M8x25":  {"diameter": 34.6302, "min_x": -6.5, "min_y": -6.5, "min_z": -15.5, "size_x": 13.0, "size_y": 13.0, "size_z": 33.0},
-                          "M8x16":  {"diameter": 21.4, "min_x": -7.0, "min_y": -6.9837, "min_z": -10.2, "size_x": 14.0, "size_y": 13.9674, "size_z": 20.4},
-                          "M6x30":  {"diameter": 37.2738, "min_x": -5.7735, "min_y": -5.0, "min_z": -17.0, "size_x": 11.547, "size_y": 10.0, "size_z": 34.0}}
-
-    name_to_3d_bboxes = {name: convert_bbox_3d(model_info) for name, model_info in name_to_model_info.items()}
-    
-    return name_to_3d_bboxes
 
 def convert_bbox_3d(model_dict):
     """
@@ -239,7 +179,6 @@ def build_model_and_load_weights(phi, num_classes, score_threshold, path_to_weig
         image_size: Integer image size used as the EfficientPose input resolution for the given phi
 
     """
-    
     print("\nBuilding model...\n")
     _, efficientpose_prediction, _ = build_EfficientPose(phi,
                                                          num_classes = num_classes,
@@ -343,6 +282,30 @@ def postprocess(boxes, scores, labels, rotations, translations, scale, score_thr
     labels = labels[indices]
     
     return boxes, scores, labels, rotations, translations
+
+def parse_data(labels, rotations, translations, class_to_name):
+
+    capture_translations = {"2-slot": [0, 0, 0],
+                       "3-slot": [0, 0, 0],
+                       "mushroombutton": [0, 0, 0],
+                       "arrowbutton": [0, 0, 0],
+                       "redbutton": [0, 0, 0],
+                       "unknownbutton": [0, 0, 0]}
+
+    capture_rotations = {"2-slot": [0, 0, 0],
+                       "3-slot": [0, 0, 0],
+                       "mushroombutton": [0, 0, 0],
+                       "arrowbutton": [0, 0, 0],
+                       "redbutton": [0, 0, 0],
+                       "unknownbutton": [0, 0, 0]}
+
+    i = 0
+    for label in labels:
+        capture_translations[class_to_name[label]] = translations[i].tolist()
+        capture_rotations[class_to_name[label]] = rotations[i].tolist()
+        i += 1
+
+    return {"translations": capture_translations, "rotations": capture_rotations}
 
 
 if __name__ == '__main__':

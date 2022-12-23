@@ -62,8 +62,8 @@ def parse_args(args):
     occlusion_parser = subparsers.add_parser('occlusion')
     occlusion_parser.add_argument('occlusion_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed).')
 
-    assembly_parser = subparsers.add_parser('assembly')
-    assembly_parser.add_argument('assembly_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed).')
+    buttonpose_parser = subparsers.add_parser('buttonpose')
+    buttonpose_parser.add_argument('buttonpose_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed).')
 
     screwdataset_parser = subparsers.add_parser('screwdataset')
     screwdataset_parser.add_argument('screwdataset_path', help = 'Path to dataset directory (ie. /Datasets/Linemod_preprocessed).')
@@ -198,11 +198,11 @@ def create_generators(args):
             use_6DoF_augmentation = False,
             **common_args
         )
-    elif args.dataset_type == 'assembly':
-        from generators.assembly import AssemblyGenerator
+    elif args.dataset_type == 'buttonpose':
+        from generators.buttonpose import ButtonPoseGenerator
         
-        generator = AssemblyGenerator(
-            args.assembly_path,
+        generator = ButtonPoseGenerator(
+            args.buttonpose_path,
             train = False,
             shuffle_dataset = False,
             shuffle_groups = False,

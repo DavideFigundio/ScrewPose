@@ -53,10 +53,12 @@ from optimizer_callback import OptimizerCallback
 
 from custom_load_weights import custom_load_weights
 
-INITIAL_EPOCH = 0
-TOTAL_EPOCHS = 15
+INITIAL_EPOCH = 30
+TOTAL_EPOCHS = 40
 SAVE_FREQUENCY = 5 # Interval in epochs between saves
-LEARNING_RATE = 1e-4  # Initial 1e-4, change to correct value when interrupting and restarting
+LEARNING_RATE = 8e-7  # Initial 1e-4, change to correct value when interrupting and restarting
+TOTAL_SAMPLES = 18000
+BATCH_SIZE = 2
 
 def parse_args(args):
     """
@@ -89,14 +91,14 @@ def parse_args(args):
     parser.add_argument('--freeze-backbone', help = 'Freeze training of backbone layers.', action = 'store_true')
     parser.add_argument('--no-freeze-bn', help = 'Do not freeze training of BatchNormalization layers.', action = 'store_true')
 
-    parser.add_argument('--batch-size', help = 'Size of the batches.', default = 4, type = int)
+    parser.add_argument('--batch-size', help = 'Size of the batches.', default = BATCH_SIZE, type = int)
     parser.add_argument('--lr', help = 'Learning rate', default = LEARNING_RATE, type = float)
     parser.add_argument('--no-color-augmentation', help = 'Do not use colorspace augmentation', action = 'store_true', default = False)
     parser.add_argument('--no-6dof-augmentation', help = 'Do not use 6DoF augmentation', action = 'store_true', default = False)
     parser.add_argument('--phi', help = 'Hyper parameter phi', default = 0, type = int, choices = (0, 1, 2, 3, 4, 5, 6))
     parser.add_argument('--gpu', help = 'Id of the GPU to use (as reported by nvidia-smi).')
     parser.add_argument('--epochs', help = 'Number of epochs to train.', type = int, default = TOTAL_EPOCHS)
-    parser.add_argument('--steps', help = 'Number of steps per epoch.', type = int, default = 4500)
+    parser.add_argument('--steps', help = 'Number of steps per epoch.', type = int, default = int(TOTAL_SAMPLES/BATCH_SIZE))
     parser.add_argument('--snapshot-path', help = 'Path to store snapshots of models during training', default = os.path.join("checkpoints", date_and_time))
     parser.add_argument('--tensorboard-dir', help = 'Log directory for Tensorboard output', default = os.path.join("logs", date_and_time))
     parser.add_argument('--no-snapshots', help = 'Disable saving snapshots.', dest = 'snapshots', action = 'store_false')
@@ -432,8 +434,8 @@ def create_generators(args):
         train_generator = ScrewDatasetGenerator(
             args.screwdataset_path,
             rotation_representation = args.rotation_representation,
-            use_colorspace_augmentation = args.no_color_augmentation,
-            use_6DoF_augmentation = not args.no_6dof_augmentation,
+            use_colorspace_augmentation = False,
+            use_6DoF_augmentation = False,
             **common_args
         )
 

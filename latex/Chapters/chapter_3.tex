@@ -46,6 +46,7 @@ EfficientPose implements Keras' ReduceLRonPlateau callback. This is standard pra
 Finally, a quality of life change. EfficientPose is concieved to be trained in a single sitting: interrupting and restarting training does not maintain the learning rate, optimizer state and momentum, leading to a rise in training loss before it starts diminishing again after a few epochs. Since we do not want to train the model consecutively for days on end, we implemented custom callbacks that save the optimizer state and learning rate, thus we haveintroducing the possibility of interrupting and resuming training if necessary.
 
 \subsection{Results}
+Graphics go here
 
 \section{Partially Rendered Datasets: ScrewPose}
 

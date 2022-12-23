@@ -6,7 +6,6 @@ import cv2
 import numpy as np
 import os
 import math
-import struct
 import tensorflow as tf
 import pykinect_azure as pykinect
 from plyfile import PlyData, PlyElement
@@ -19,7 +18,7 @@ from utils.visualization import draw_detections
 
 DO_ICP = False
 VISUALIZE_POINTCLOUD = False
-CLASS_TO_NAME = {0 : "M8x50", 1 : "M8x25", 2 : "M8x16", 3 : "M6x30"}
+CLASS_TO_NAME = {0 : "2-slot", 1 : "3-slot", 2 : "mushroombutton", 3 : "arrowbutton", 4 : "redbutton", 5 : "unknownbutton"}
 
 def main():
     """
@@ -31,8 +30,8 @@ def main():
 
     #input parameters
     phi = 0
-    path_to_weights = "./weights/screwpose_100_epochs.h5"
-    path_to_models = "./models/"
+    path_to_weights = "./weights/buttonpose_40_epochs.h5"
+    path_to_models = "./models/ply/"
     class_to_name = CLASS_TO_NAME
     score_threshold = 0.5
     translation_scale_norm = 1000.0     # conversion factor from m to mm
@@ -51,8 +50,6 @@ def main():
     model, image_size = build_model_and_load_weights(phi, num_classes, score_threshold, path_to_weights)
     print("\nSetting up Azure Kinect...\n")
 
-    visualizer = Open3dVisualizer()
-
     # Initialize the library, if the library is not found, add the library path as argument
     pykinect.initialize_libraries()
 
@@ -63,8 +60,6 @@ def main():
     if DO_ICP:
         device_config.depth_mode = pykinect.K4A_DEPTH_MODE_NFOV_UNBINNED
         device_config.synchronized_images_only = True
-        
-    
 
 	# Start device
     device = pykinect.start_device(config=device_config)
@@ -78,7 +73,7 @@ def main():
     #inferencing
     print("\nStarting inference...\n")
 
-    #visualizer = Open3dVisualizer()
+    visualizer = Open3dVisualizer()
 
     while True:
 
@@ -86,21 +81,20 @@ def main():
         capture = device.update()
 
 		# Get the color image from the capture
-        ret, image = capture.get_color_image()
+        ret, color_image = capture.get_color_image()
         
         if not ret:
             continue
 
-        
         # Removing alpha channel
-        image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+        color_image = cv2.cvtColor(color_image, cv2.COLOR_BGRA2BGR)
 
         # Undistorting the imgae
-        image = cv2.undistort(image, camera_matrix, dist)
+        color_image = cv2.undistort(color_image, camera_matrix, dist)
         
         # Preprocessing
-        original_image = image.copy()
-        input_list, scale = preprocess(image, image_size, camera_matrix, translation_scale_norm)
+        original_image = color_image.copy()
+        input_list, scale = preprocess(color_image, image_size, camera_matrix, translation_scale_norm)
         
         # Pose inference with EfficientPose
         boxes, scores, labels, rotations, translations = model.predict_on_batch(input_list)
@@ -110,17 +104,9 @@ def main():
 
         # Pose refinement with ICP
         if DO_ICP and translations.any():
-            _, pointcloud = capture.get_pointcloud()
-            
-            # print(type(pointcloud))
-            # print(pointcloud)
-            # savePointcloud(pointcloud, "pointcloud.ply")
-            # break
+            rotations, translations = icp.pose_refinement(ICP, capture, labels, rotations, translations, boxes, class_to_name, name_to_models, camera_matrix, visualizer)
 
-            pointcloud = icp.crop_pointcloud(pointcloud, translations[0], 40)
-            visualizer(pointcloud)
-            #visualizer(cropped_pc)
-            rotations, translations = icp.pose_refinement(ICP, pointcloud, labels, rotations, translations, class_to_name, name_to_models)
+        print(translations)
 
         # Plotting detections and displaying the image
         draw_detections(original_image,
@@ -155,6 +141,7 @@ def allow_gpu_growth_memory():
     config.gpu_options.allow_growth = True
     _ = tf.Session(config = config)
 
+
 def get_camera_params(calibration, print_params=False):
     """
     Gets camera parameters from current Azure calibration settings.
@@ -173,7 +160,6 @@ def get_camera_params(calibration, print_params=False):
         print(calibration)
 
     params = calibration.color_params
-    depth_params = calibration.depth_params
 
     mat = np.array(calibration.get_matrix("color"), dtype=np.float32)
 
@@ -183,17 +169,26 @@ def get_camera_params(calibration, print_params=False):
 
     return mat, dist, depthmat
 
+
 def get_3d_bboxes():
     """
     Returns:
         name_to_3d_bboxes: Dictionary with the Linemod and Occlusion 3D model names as keys and the cuboids as values
 
     """
+    '''
     name_to_model_info = {"M8x50":  {"diameter": 58.9428, "min_x": -6.5, "min_y": -6.4723, "min_z": -29.0, "size_x": 13.0, "size_y": 12.9445, "size_z": 58.0},
                           "M8x25":  {"diameter": 34.6302, "min_x": -6.5, "min_y": -6.5, "min_z": -15.5, "size_x": 13.0, "size_y": 13.0, "size_z": 33.0},
                           "M8x16":  {"diameter": 21.4, "min_x": -7.0, "min_y": -6.9837, "min_z": -10.2, "size_x": 14.0, "size_y": 13.9674, "size_z": 20.4},
                           "M6x30":  {"diameter": 37.2738, "min_x": -5.7735, "min_y": -5.0, "min_z": -17.0, "size_x": 11.547, "size_y": 10.0, "size_z": 34.0}}
-    
+    '''
+    name_to_model_info = {"2-slot":  {"diameter": 137.11, "min_x": -34.0, "min_y": -52.8, "min_z": -27.5, "size_x": 68.0, "size_y": 105.6, "size_z": 55.0},
+                          "3-slot":  {"diameter": 161.36, "min_x": -34.0, "min_y": -67.8, "min_z": -27.5, "size_x": 68.0, "size_y": 135.6, "size_z": 55.0},
+                          "mushroombutton":  {"diameter": 21.4, "min_x": -25.92, "min_y": -19.97, "min_z": -19.99, "size_x": 51.87, "size_y": 39.92, "size_z": 39.96},
+                          "arrowbutton":  {"diameter": 37.2738, "min_x": -13.32, "min_y": -14.25, "min_z": -14.25, "size_x": 26.65, "size_y": 28.5, "size_z": 28.5},
+                          "redbutton":  {"diameter": 37.2738, "min_x": -13.32, "min_y": -14.25, "min_z": -14.25, "size_x": 26.65, "size_y": 28.5, "size_z": 28.5},
+                          "unknownbutton":  {"diameter": 37.2738, "min_x": -13.32, "min_y": -14.25, "min_z": -14.25, "size_x": 26.65, "size_y": 28.5, "size_z": 28.5}}
+
     name_to_3d_bboxes = {name: convert_bbox_3d(model_info) for name, model_info in name_to_model_info.items()}
     
     return name_to_3d_bboxes
@@ -350,17 +345,6 @@ def postprocess(boxes, scores, labels, rotations, translations, scale, score_thr
     
     return boxes, scores, labels, rotations, translations
 
-def savePCtoPLY(points, filepath):
-    if len(points)>0:
-        with open("pointcloud.txt", "x") as file:
-            for point in points:
-                file.write(str(point))
-        ply_vertices = np.empty(len(points), dtype=[("vertices", np.float32, (3, ))])
-        ply_vertices["vertices"] = points
-        pc = PlyElement.describe(ply_vertices, "vertex")
-        pc = PlyData([pc])
-        with open(filepath, 'wb') as f:
-            pc.write(f)
 
 def load_3D_models(class_to_name_dict, path_to_models):
     """
@@ -387,14 +371,14 @@ def load_3D_models(class_to_name_dict, path_to_models):
 
     return name_to_model_dict
 
+
 def savePointcloud(xyz_points, filename):
 
     assert xyz_points.shape[1] == 3,'Input XYZ points should be Nx3 float array'
     
     fid = open(filename,'w')
     fid.write("ply\n")
-    fid.write("format binary_little_endian 1.0\n")
-    #fid.write("element vertex %d\n"%xyz_points.shape[0]")
+    fid.write("format ascii 1.0\n")
     fid.write("element vertex "+ str(xyz_points.shape[0]) + "\n")
     fid.write("property float x\n")
     fid.write("property float y\n")

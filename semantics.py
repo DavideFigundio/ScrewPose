@@ -70,7 +70,7 @@ def compute_AD(modelpoints, gt_rot_mat, gt_trans, pred_rot_mat, pred_trans, maxp
     min_distances = wrapper_c_min_distances(transformed_points_gt[::step, :], transformed_points_pred[::step, :])
     return np.mean(min_distances)
 
-def load_data(boardstates_path, capturedata_path, gt_path):
+def load_data(boardstates_path, capturedata_path, gt_path=None):
 
     print("Loading inferences...")
     with open(capturedata_path, "r") as file:
@@ -80,9 +80,12 @@ def load_data(boardstates_path, capturedata_path, gt_path):
     with open(boardstates_path) as file:
         boardstates = json.load(file)
 
-    print("Loading ground truths...")
-    with open(gt_path, "r") as file:
-        ground_truths = yaml.safe_load(file)
+    if gt_path != None:
+        print("Loading ground truths...")
+        with open(gt_path, "r") as file:
+            ground_truths = yaml.safe_load(file)
+    else:
+        ground_truths = None
 
     print("Done!")
     return boardstates, capturedata, ground_truths
@@ -138,6 +141,3 @@ def load_3D_models(class_to_name_dict, path_to_models):
         name_to_model_dict[class_to_name_dict[key]] = points
 
     return name_to_model_dict
-
-if __name__ == "__main__":
-    main()

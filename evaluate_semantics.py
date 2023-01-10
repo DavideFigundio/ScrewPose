@@ -4,11 +4,11 @@ import numpy as np
 
 def main():
     boardstates_path = "datasets/ButtonPose/data/boardstates.json"
-    capturedata_path = "capturedata.json"
+    capturedata_path = "./data/capturedata.json"
     model_dict_path = "./models/ply"
 
-    AD_savepath = "./AD_confusions.csv"
-    CD_savepath = "./CD_confusions.csv"
+    AD_savepath = "./data/AD_confusions.csv"
+    CD_savepath = "./data/CD_confusions.csv"
 
     buttons = ["redbutton", "arrowbutton", "mushroombutton"]
     boards = {"2-slot": 2, "3-slot": 3}
@@ -18,9 +18,9 @@ def main():
     translations_to_slots = sem.get_hole_translations()
     boardstates, capturedata, _ = sem.load_data(boardstates_path, capturedata_path)
 
-    threshold = 40
-    maximum_threshold = 80
-    threshold_interval = 0.5
+    threshold = 100
+    maximum_threshold = 150
+    threshold_interval = 2
 
     start_index = 18000
     stop_index = 20000
@@ -30,20 +30,21 @@ def main():
 
     while threshold < maximum_threshold:
         print("Calculating for threshold: " + str(threshold) + " mm...")
-        Cmatrix_AD, Cmatrix_CD = evaluate_threshold(start_index, stop_index, capturedata, boardstates, buttons, boards, name_to_model, translations_to_slots, threshold)
+        #Cmatrix_AD, Cmatrix_CD = evaluate_threshold(start_index, stop_index, capturedata, boardstates, buttons, boards, name_to_model, translations_to_slots, threshold)
+        Cmatrix_AD = evaluate_threshold(start_index, stop_index, capturedata, boardstates, buttons, boards, name_to_model, translations_to_slots, threshold)
         AD_data.append([threshold, Cmatrix_AD])
-        CD_data.append([threshold, Cmatrix_CD])
+        #CD_data.append([threshold, Cmatrix_CD])
         threshold += threshold_interval
 
     print("Saving data...")
     save_to_csv(AD_data, AD_savepath)
-    save_to_csv(CD_data, CD_savepath)
+    #save_to_csv(CD_data, CD_savepath)
     print("Done.")
 
 
 def evaluate_threshold(start_index, stop_index, capturedata, boardstates, buttons, boards, name_to_model, translations_to_slots, threshold):
     Cmatrix_AD = ConfusionMatrix()
-    Cmatrix_CD = ConfusionMatrix()
+    #Cmatrix_CD = ConfusionMatrix()
 
     for i in range(start_index, stop_index):
         print(str(i-start_index) + "/" + str(stop_index-start_index), end='\r')
@@ -51,38 +52,53 @@ def evaluate_threshold(start_index, stop_index, capturedata, boardstates, button
         boardstate = boardstates[str(i)]
 
         estimated_boardstate_AD = estimate_boardstate_AD(capture, buttons, boards, translations_to_slots, name_to_model, threshold)
-        estimated_boardstate_CD = estimate_boardstate_CD(capture, buttons, boards, translations_to_slots, threshold)
+        #estimated_boardstate_CD = estimate_boardstate_CD(capture, buttons, boards, translations_to_slots, threshold)
 
         Cmatrix_AD.add(evaluate_boardstate(estimated_boardstate_AD, boardstate))
-        Cmatrix_CD.add(evaluate_boardstate(estimated_boardstate_CD, boardstate))
+        #Cmatrix_CD.add(evaluate_boardstate(estimated_boardstate_CD, boardstate))
 
-    return Cmatrix_AD, Cmatrix_CD
+    return Cmatrix_AD#, Cmatrix_CD
 
 def estimate_boardstate_AD(capture, buttons, boards, translations_to_slots, name_to_model, threshold):
-    boardstate = generate_empty_boardstate(boards)
+    boardstate = generate_empty_boardstate_dict(boards)
 
-    for board in [board for board in boards.keys() if board in capture["translations"].keys()]:
+    for board in [board for board in boards if board in capture["translations"]]:
         boardposition = capture["translations"][board]
         boardrotation, _ = cv2.Rodrigues(np.array(capture["rotations"][board], dtype=np.float32))
             
-        for button in [button for button in buttons if button in capture["translations"].keys()]:
+        for button in [button for button in buttons if button in capture["translations"]]:
             buttonposition = capture["translations"][button]
             buttonrotation, _ = cv2.Rodrigues(np.array(capture["rotations"][button], dtype=np.float32))
 
             for i in range(boards[board]):
-                if boardstate[board][i] != 'empty':
-                    continue
-
                 holeposition = np.matmul(boardrotation, translations_to_slots[button][board][i]) + boardposition
                 holerotation = np.matmul(boardrotation, np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]]))
 
                 average_distance = sem.compute_AD(name_to_model[button], holerotation, holeposition, buttonrotation, buttonposition)
                 
                 if average_distance < threshold:
-                    boardstate[board][i] = button
-                    break
+                    boardstate[board][i][button] = average_distance
     
-    return boardstate
+    final_boardstate = generate_empty_boardstate(boards)
+    for button in buttons:
+        placed = False
+        distances = {boardstate[board][i][button]:(board, i) for board in boardstate for i in range(boards[board]) if button in boardstate[board][i]}
+        
+        while not placed:
+            if not distances:
+                break
+
+            minimumdistance = min(distances.keys())
+            closest_board = distances[minimumdistance][0]
+            closest_slot = distances[minimumdistance][1]
+            
+            if len(distances) == 1 or min(boardstate[closest_board][closest_slot].values()) == minimumdistance:
+                final_boardstate[closest_board][closest_slot] = button
+                placed = True
+            else:
+                distances.pop(minimumdistance)
+
+    return final_boardstate
 
 def estimate_boardstate_CD(capture, buttons, boards, translations_to_slots, threshold):
     boardstate = generate_empty_boardstate(boards)
@@ -146,11 +162,14 @@ def evaluate_board(estimated_state, gt_state):
     
     return Cmatrix
 
+def generate_empty_boardstate_dict(boards):
+    return {board:[{} for i in range(boards[board])] for board in boards}
+
 def generate_empty_boardstate(boards):
     boardstate = {}
     for board in boards:
-        emptyarray = ["empty" for i in range(boards[board])]
-        boardstate[board] = emptyarray
+        emptydict = ["empty" for i in range(boards[board])]
+        boardstate[board] = emptydict
 
     return boardstate
 
@@ -162,8 +181,6 @@ def save_to_csv(data, filepath):
             Cmatrix = frame[1]
 
             csvfile.write(str(threshold) + ',' + str(Cmatrix.TP) + ',' + str(Cmatrix.FP) + ',' + str(Cmatrix.FN) + ',' + str(Cmatrix.TN) + '\n')
-
-        
 
 class ConfusionMatrix:
     def __init__(self, TP=0, TN=0, FP=0, FN=0):

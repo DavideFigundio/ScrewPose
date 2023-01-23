@@ -58,7 +58,7 @@ After 100 epochs of training, the progress of which is shown in figure \ref{fig:
 
 Another serious issue, that is more difficult to convey on paper, is that the model is not able to bridge the reality gap: while testing in real-life scenarios, it failed to identify the screw in most conditions, let alone produce accurate estimations. This means that it generalises poorly outside of the simulated environment, making it essentially unuseable.
 
-\section{Partially Rendered Datasets}
+\section{Augmented Reality Datasets}
 
 \subsection{Motivations and Objective}
 
@@ -75,13 +75,13 @@ We have two options for facing this issue. The first would be to make the backgr
 
 The second option is to generate a set of training images that more accurately depict a small number of chosen environments. This makes it easier for the model to bridge the reality gap by making this gap "smaller", reducing the differences between the training dataset and the typical image seen during inferencing. However, we have fewer guarantees on performance outside of the selected environments, which makes this approach better for usecases which are stationary or limited to fewer settings. This is often the case for industrial applications, making this second option our preferred choice.
 
-Thus our objective is to create a method to easily and quickly generate a realistic training dataset for our testing environment, which is a simple table with the objects placed on its surface.
+Thus our objective is to create a method to easily and quickly generate a realistic training dataset for our testing environment, which is a simple table with the objects placed on its surface. To do this, we will use an "Augmented Reality" approach, rendering the dataset objects on top of real images captured from the testing area.
 
 \subsection{Generation Methodology}
 
 We again use Unity Perception to generate our training dataset, as described in \ref{ss:ScrewDataset}. We used models for 5 objects: the same M6x30 screw used previously, a M8x16 round head screw, a M8x25 and M8x50 socket head screws, and a M4x40 countersunk screw. As previously stated, these are small, symmetric objects that are generally challenging to identify, with the additional complication that they all have similar shapes and sizes. Only the first four  are annotated, while the M4x40 is included as a "decoy" to reduce the number of false positives.
 
-The key issue now becomes the positioning of the objects in the image. Since in real-life conditions, the pose of an item is almost always influenced to some degree by its environment, we believe that simply placing the item freely in 6D space as we did in the previous approach would lose information compared to a realistic placement. Taking our example setting where the objects are placed on a surface, this constrains three degrees of freedom for each object: the vertical position relative to the surface, and the two rotations around the axises that determine the surface itself. Thus our objective is, for each image, to start from the pose of the surface relative to the camera, and from there generate a realistic pose for each dataset object, so that the object appears to be placed on the surface.
+The key issue now becomes the positioning of the objects in the image. Since in real-life conditions, the pose of an item is almost always influenced to some degree by its environment, we believe that simply placing the item freely in 6D space as we did in the previous approach would lose information compared to a realistic placement. Taking our example setting where the objects are placed on a surface, this constrains three degrees of freedom for each object: the vertical position relative to the surface, and the two rotations around the axises that determine the surface itself. Thus our objective is, for each background image, to start from the pose of the surface relative to the camera, and from there generate a realistic pose for each dataset object, so that the object appears to be placed on the surface.
 
 This pose is generated using the composition in sequence of three roto-translations:
 
@@ -193,26 +193,74 @@ Other training parameters are identical to the previous attempt with the fully g
 
 After training, the progress of which can be seen in figure \ref{fig:screwpose_training}, the model achieves the results shown in table \ref{tab:screwpose}.
 
+Overall, the performance of this model is much better than the previous one, obtaining an average ADD-S of 82.05\%, which is better than EfficientPose's reported 79.04\% on Occlusion-LINEMOD with $\phi=0$, and comparable to its 83.98\% with $\phi = 3$. This is a good result, considering that the objects for our dataset are smaller, symmetric and all visually similar.
+
+Furthermore, the model is capable of generalising to real life situations without noticeable decreases in performance, as can be seen in figure \ref{fig:screwpose_inferencing}.
+
 \begin{figure}[ht]
     \includegraphics[width=\textwidth]{screwpose_training.png}
     \caption{Evolution of the loss, AD-S and ADD-S metrics during training for the partially rendered dataset. The loss is computed as the AD-S metric on the training dataset.}
     \label{fig:screwpose_training}
 \end{figure}
 
-
-
-Overall, the performance of this model is much better than the previous one, obtaining an average ADD-S of 82.05\%, which is better than EfficientPose's reported 79.04\% on Occlusion-LINEMOD with $\phi=0$, and comparable to its 83.98\% with $\phi = 3$. This is a good result, considering that the objects for our dataset are smaller, symmetric and all visually similar.
-
 \begin{figure}[ht]
     \includegraphics[width=\textwidth]{screwpose_inferencing.png}
-    \caption{Four images displaying pose estimations from the network. The left two are part of the evaluation dataset and display ground truths with green bounding boxes, the right two are captures from a real camera in a testing environment.}
+    \caption{Four images displaying pose estimations from the network. The left two are part of the evaluation dataset and display ground truths with green bounding boxes, the right two are captures from a real camera in the testing environment.}
     \label{fig:screwpose_inferencing}
 \end{figure}
-
-Furthermore, the model is capable of generalising to real life situations without noticeable decreases in performance, as can be seen in figure \ref{fig:screwpose_inferencing}.
 
 \section{Semantics Applications}
 
 \subsection{Motivations and Objective}
 
-In many applications, it may be that estimating the pose of an object is sufficient to perform the task. However, in many situations it may be necessary to infer additional information from this data. An example may be the assembly of a workpiece from its components, where while tracking the pose of each individual component we may also have to track the state of the assembly itself.
+In many applications, it may be that estimating the pose of an object is sufficient to perform the task. However, it it often necessary to infer additional information from this data. A typical situation is the assembly of a workpiece from its components, where while tracking the pose of each individual component we may also have to track the state of the assembly itself.
+
+Thus we want to ascertain if it is viable to use pose estimation techniques to track the position of the components for an assembly task, and simultaneously obtain information of its overall state.
+
+\subsection{Dataset Generation and Training}
+
+The first step to working with neural networks is again the generation of the datasets required for training and evaluation. For our task, we are considering the assembly of a set of modular button boards. We have two boards, one with two slots, and one with three slots. These slots can be filled in any order with one of three buttons: a larger safety button with a mushroom cap, and two smaller buttons with different designs on their faces, but identical shape. The CAD models for these objects were available online from the supplier's website, and we used Blender to color them appropriately. Renders for these objects are depicted in figure \ref{fig:buttonpose_objects}.
+
+\begin{figure}[ht]
+    \includegraphics[width=0.6\textwidth]{buttonpose_objects.png}
+    \caption{Orthographic rendering of dataset objects: two modular button boards and three buttons.}
+    \label{fig:buttonpose_objects}
+\end{figure}
+
+To generate the dataset images we can use the same method used for the Augmented Reality dataset, however we have a few noticeable differences that require consideration. The first obvious one is that we would like to represent the buttons not only while they are freely placed on the table surface, but also when they are slotted into a board. This is achievable by positioning the button with the same pose as the board, and then applying a final roto-translation that shifts the button into a slot. We can compute these transformations in advance and simply apply them when necessary.
+
+The second, more insidious issue has to do with the two buttons with identical shape. These buttons are distinguishable only by the different designs on their faces, but when placing them randomly, there is a good chance that these faces are not visible. This leads to a situations where it is impossible to differentiate between the two, causing a drastic drop in performance, as during training the network will percieve a large number of false positives.
+
+To solve this issue, we can add a fictional object to the dataset, the "unidentified button". Simply put, we categorize buttons without their unique face visible as a new object class, since it is impossible for the network to directly classify them as one type or the other.
+
+\begin{figure}[ht]
+    \includegraphics[width=\textwidth]{buttonpose_placement.png}
+    \caption{Flowchart representing the algorithm for placement of dataset objects, when placing buttons inside of slots and checking for face occlusion.}
+    \label{fig:buttonpose_placement}
+\end{figure}
+
+We can use a simple geometric method to determine if a button's face is visible, explicated in figure \ref{fig:button_occlusion}. Considering the origin of the camera reference frame $O = [0, 0, 0]^T$, the button's pose is given by the translation vector $t$ and the rotation matrix R. $t$ also indicates the position of the center of the button $C$, due to it being the origin of the button's 3D model. If we then consider the vector $f = [f_x, f_y, f_z]^T$ indicating the position of the center of the button's face $F$ in the button's frame of reference, the position of this point in the camera frame is given by:
+
+\begin{figure}
+    \includegraphics[width=0.7\textwidth]{button_occlusion.png}
+    \caption{Schematic representation of the button relative to the camera, and of the variables used when evaluating occlusion of the button face.}
+    \label{fig:button_occlusion}
+\end{figure}
+
+\begin{equation*}
+    F = t + \text{R}f
+\end{equation*}
+
+We can then compute the amplitude of the angle $\alpha = C\hat{F}O$. Denoting $OF=b$, we apply the law of cosines:
+
+\begin{equation*}
+    t^Tt = b^Tb + f^Tf -  2||b||\cdot ||f|| \cdot \cos \alpha
+\end{equation*}
+
+By making $\alpha$ explicit in this equation we obtain:
+
+\begin{equation*}
+    \alpha = \cos^{-1}\left(\frac{t^Tt- b^Tb-f^Tf}{2||b||\cdot||f||}\right)
+\end{equation*}
+
+It is simple to verify geometrically that the button's face is occluded whenever $\alpha < 90\degree$, and viceversa. To avoid strange edge cases where the button's face is barely visible in the proximity of $\alpha = 90\degree$, we introduce a small buffer angle $\beta$, usually around 5\degree. Thus we categorize a button as unrecognizeable whenever $\alpha < 90\degree + \beta$.

@@ -10,3 +10,5 @@ progressbar2==3.53.1
 h5py==2.10.0
 tensorflow-estimator==1.15.1
 tensorboard==1.15.0
+open3d
+scikit-learn

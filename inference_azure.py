@@ -8,16 +8,13 @@ import os
 import math
 import tensorflow as tf
 import pykinect_azure as pykinect
-from plyfile import PlyData, PlyElement
-from pykinect_azure.utils import Open3dVisualizer
+from plyfile import PlyData
 
-import icp_refinement as icp
 from model import build_EfficientPose
 from utils import preprocess_image
 from utils.visualization import draw_detections
+import semantics as sem
 
-DO_ICP = False
-VISUALIZE_POINTCLOUD = False
 CLASS_TO_NAME = {0 : "2-slot", 1 : "3-slot", 2 : "mushroombutton", 3 : "arrowbutton", 4 : "redbutton", 5 : "unknownbutton"}
 
 def main():
@@ -28,11 +25,10 @@ def main():
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     allow_gpu_growth_memory()
 
-    #input parameters
+    # Model input parameters
     phi = 0
     path_to_weights = "./weights/buttonpose_40_epochs.h5"
-    path_to_models = "./models/ply/"
-    class_to_name = CLASS_TO_NAME
+    class_to_name = {0 : "2-slot", 1 : "3-slot", 2 : "mushroombutton", 3 : "arrowbutton", 4 : "redbutton", 5 : "unknownbutton"}
     score_threshold = 0.5
     translation_scale_norm = 1000.0     # conversion factor from m to mm
     draw_bbox_2d = False
@@ -41,40 +37,37 @@ def main():
     name_to_3d_bboxes = get_3d_bboxes()
     class_to_3d_bboxes = {class_idx: name_to_3d_bboxes[name] for class_idx, name in class_to_name.items()} 
     num_classes = len(class_to_name)
-    
-    name_to_models = load_3D_models(class_to_name, path_to_models)
 
-    ICP = icp.create_ICP(100)
-
-    #build model and load weights
+    # Build model and load weights
     model, image_size = build_model_and_load_weights(phi, num_classes, score_threshold, path_to_weights)
     print("\nSetting up Azure Kinect...\n")
 
-    # Initialize the library, if the library is not found, add the library path as argument
+    # Semantic state generation
+    placeable_buttons = ["redbutton", "arrowbutton", "mushroombutton"]    # List of the names of button objects
+    boards = {"2-slot": 2, "3-slot": 3}                         # Dict that associates each board name with the number of slots it has
+    translations_to_slots = get_hole_translations()
+    sem_threshold = 76
+    state = sem.BoardState(boards, placeable_buttons, translations_to_slots)
+
+    # Initialize the kinect library, if the library is not found, add the library path as argument
     pykinect.initialize_libraries()
 
 	# Modify camera configuration
     device_config = pykinect.default_configuration
     device_config.color_resolution = pykinect.K4A_COLOR_RESOLUTION_720P
 
-    if DO_ICP:
-        device_config.depth_mode = pykinect.K4A_DEPTH_MODE_NFOV_UNBINNED
-        device_config.synchronized_images_only = True
-
 	# Start device
     device = pykinect.start_device(config=device_config)
 
     # Getting intrinsic parameters
     print_params = True
-    camera_matrix, dist, depthmat = get_camera_params(device.calibration, print_params)
+    camera_matrix, dist, depth_matrix = get_camera_params(device.calibration, print_params)
     
     cv2.namedWindow('ScrewPose', cv2.WINDOW_NORMAL)
 
     #inferencing
     print("\nStarting inference...\n")
-
-    visualizer = Open3dVisualizer()
-
+    i = 0
     while True:
 
 		# Get capture
@@ -102,12 +95,6 @@ def main():
         # Postprocessing
         boxes, scores, labels, rotations, translations = postprocess(boxes, scores, labels, rotations, translations, scale, score_threshold)
 
-        # Pose refinement with ICP
-        if DO_ICP and translations.any():
-            rotations, translations = icp.pose_refinement(ICP, capture, labels, rotations, translations, boxes, class_to_name, name_to_models, camera_matrix, visualizer)
-
-        print(translations)
-
         # Plotting detections and displaying the image
         draw_detections(original_image,
                         boxes,
@@ -123,10 +110,17 @@ def main():
 		
 		
         cv2.imshow("ScrewPose", original_image)
+
+        # Esitmating semantic state
+        state.clear()
+        state.estimate(class_to_name, labels, rotations, translations, sem_threshold)
+        print(state)
 		
 		# Press q key to stop
         if cv2.waitKey(1) == ord('q'): 
             break
+
+        i += 1
         
     #release webcam and close windows
     cv2.destroyAllWindows()
@@ -346,51 +340,38 @@ def postprocess(boxes, scores, labels, rotations, translations, scale, score_thr
     return boxes, scores, labels, rotations, translations
 
 
-def load_3D_models(class_to_name_dict, path_to_models):
-    """
-    Function that loads the 3d models from a directory. Models must be in the .ply format and each model must be named in the format "<name>.ply",
-    where <name> is the name it has inside the class_to_name dictionary.
-    Args:
-        class_to_name_dict - dictionary that associates each class to the corresponding model name
-        path_to_models - location where the .ply files are stored
-    Returns:
-        name_to_model_dict - dictionary that associates each name to a pointcloud that represents its 3D model
-    """
-
-    name_to_model_dict = {}
-
-    for key in class_to_name_dict.keys():
-        model_data = PlyData.read(os.path.join(path_to_models, class_to_name_dict[key] + ".ply"))
-                                  
-        vertex = model_data['vertex']
-        points = np.stack([vertex[:]['x'], vertex[:]['y'], vertex[:]['z']], axis = -1).astype(np.float32)
-        
-        #points = np.append(points.astype("float32"), np.zeros((len(points), 3), dtype=np.float32), axis=1)
-        points = points.astype("float32")
-        name_to_model_dict[class_to_name_dict[key]] = points
-
-    return name_to_model_dict
-
-
-def savePointcloud(xyz_points, filename):
-
-    assert xyz_points.shape[1] == 3,'Input XYZ points should be Nx3 float array'
+def get_hole_translations():
+    '''
+    Generates a dict that associates for each button and for each slot the translations from the center of each board to the center
+    of the button if it were in that slot.
+    '''
+    translation_to_slots = {
+            "mushroombutton": {
+                "2-slot": [
+                    np.array([0, -15.06, 35.6]),
+                    np.array([0, 15.06, 35.6])],
+                "3-slot": [
+                    np.array([0, -30.1, 35.6]),
+                    np.array([0, 0, 35.6]),
+                    np.array([0, 30.1, 35.6])]},
+            "redbutton": {
+                "2-slot": [
+                    np.array([0, -15.06, 25.1]),
+                    np.array([0, 15.06, 25.1])],
+                "3-slot": [
+                    np.array([0, -30.1, 25.1]),
+                    np.array([0, 0, 25.1]),
+                    np.array([0, 30.1, 25.1])]},
+            "arrowbutton": {
+                "2-slot": [
+                    np.array([0, -15.06, 25.1]),
+                    np.array([0, 15.06, 25.1])],
+                "3-slot": [
+                    np.array([0, -30.1, 25.1]),
+                    np.array([0, 0, 25.1]),
+                    np.array([0, 30.1, 25.1])]}}
     
-    fid = open(filename,'w')
-    fid.write("ply\n")
-    fid.write("format ascii 1.0\n")
-    fid.write("element vertex "+ str(xyz_points.shape[0]) + "\n")
-    fid.write("property float x\n")
-    fid.write("property float y\n")
-    fid.write("property float z\n")
-    fid.write("end_header\n")    # Write 3D points to .ply file
-    for i in range(xyz_points.shape[0]):
-        if xyz_points[i, 0] == 0 and xyz_points[i, 1] == 0 and xyz_points[i, 0] == 0:
-            continue
-        fid.write(str(xyz_points[i,0]) + " " + 
-                  str(xyz_points[i,1]) + " " +
-                  str(xyz_points[i,2]) + "\n")
-    fid.close()
+    return translation_to_slots
 
 
 if __name__ == '__main__':

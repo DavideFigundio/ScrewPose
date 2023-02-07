@@ -17,6 +17,7 @@ files, one for each method. The files are saved in the format:
 
     Column 1:       |Column 2:      |Column 3:      |Column 4:      |Column 5:
     Threshold [mm]  |True Positives |False Positives|False Negatives|True Negatives
+    
 '''
 
 import cv2
@@ -222,7 +223,8 @@ def estimate_boardstate_CD(capture, buttons, boards, translations_to_slots, thre
                     boardstate[board][i][button] = centerdistance
 
     # Evaluation of each slot to determine final estimation.
-    return parse_board_estimations(buttons, boards, boardstate)
+    #return parse_board_estimations(buttons, boards, boardstate)
+    return alternative_parse_boardstate_estimations(boards, boardstate)
 
 def parse_board_estimations(buttons, boards, boardstate):
     '''
@@ -265,6 +267,38 @@ def parse_board_estimations(buttons, boards, boardstate):
                 distances.pop(minimumdistance)
 
     return final_boardstate
+
+def alternative_parse_boardstate_estimations(boards, boardstate):
+    '''
+    Resolves conflicts between plausible placements based on the shortest distance.
+    Arguments:
+        -buttons - list of names of the buttons to be placed
+        -boards - dict that associates each board name (str) with the number of slots it has(int).
+        -boardstate - object that associates each board with its slots, each slot with a list of possible 
+        candidate buttons, and each candidate with its distance from the slot
+    Returns:
+        -boardstate - object that represents the estimated state of the slots on each board for the frame.
+        boardstate -> (board name[str]) -> (slots [str array])
+    '''
+
+    final_boardstate = generate_empty_boardstate(boards)
+
+    for board in boardstate:
+
+        for i in range(boards[board]):
+
+            if boardstate[board][i]:
+                
+                closest_button = min(boardstate[board][i], key = boardstate[board][i].get)
+
+                button_distances = {boardstate[board][i][closest_button]:(board, i) for board in boardstate for i in range(boards[board]) if closest_button in boardstate[board][i]}
+                minimumdistance = min(button_distances.keys())
+                if board == button_distances[minimumdistance][0] and i == button_distances[minimumdistance][1]:
+                    final_boardstate[board][i] = closest_button
+    
+    return final_boardstate
+
+
 
 def evaluate_boardstate_symmetrical(estimated_boardstate, gt_boardstate):
     '''
@@ -356,6 +390,7 @@ def save_to_csv(data, filepath):
         -filepath - string indicating the path where the data is saved.
     '''
     with open(filepath, "w") as csvfile:
+        csvfile.write("threshold,TP,FP,FN,TN\n")
         for frame in data:
             threshold = frame[0]
             Cmatrix = frame[1]

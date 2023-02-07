@@ -8,9 +8,13 @@ close all
 % ad_s = readtable("screwpose_AD_S.csv");
 % add_s = readtable("screwpose_ADD_S.csv");
 
-t_loss = readtable("screwdataset_transformation_loss.csv");
-ad_s = readtable("screwdataset_AD_S.csv");
-add_s = readtable("screwdataset_ADD_S.csv");
+% t_loss = readtable("screwdataset_transformation_loss.csv");
+% ad_s = readtable("screwdataset_AD_S.csv");
+% add_s = readtable("screwdataset_ADD_S.csv");
+
+t_loss = readtable("buttonpose_transformation_loss.csv");
+ad_s = readtable("buttonpose_AD_S.csv");
+add_s = readtable("buttonpose_ADD_S.csv");
 
 %% PLOTTING
 

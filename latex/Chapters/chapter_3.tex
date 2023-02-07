@@ -12,7 +12,7 @@ These datasets consist of a collection of images containing the object we wish t
 
 One possible solution is to use rendering software, which can generate potentially infinite quantites of training images with associated, perfectly accurate ground truths. However, while a model trained on this data could function in simulation, we have no guarantee whether it would also function in real life. This is because a simulated sensor and simulated enviroment are unable to reproduce unmodeled physical effects and noise in the same way a real sensor would with a real environment. This issue, dubbed the "reality gap"\cite{domainRandomization2}, is recurring in any field which relies on simulations to supply data.
 
-Domain Randomization\cite{domainRandomization} is one of the most utilised methods for solving this issue. It states that introducing sufficient variability in the simulated domain will allow the model to generalise to the real world with no additional training. This allows us to entirely skip the laborious data collection step and instead rely on a 3D model of the object we wish to track, which is usually readily available and accurate.
+Domain Randomization\cite{domainRandomization} is one of the most utilised methods for solving this issue. Its principle states that introducing sufficient variability in the simulated domain will allow the model to generalise to the real world with no additional training. This allows us to entirely skip the laborious data collection step and instead rely on a 3D model of the object we wish to track, which is usually readily available and accurate.
 
 Thus our objective is the creation of a fully rendered dataset for our network, and the evalutation of the performance of the network trained on this synthetic data in real life applications.
 
@@ -21,16 +21,16 @@ Thus our objective is the creation of a fully rendered dataset for our network, 
 
 To render the images for our dataset, we used the Unity Perception package\cite{unityPerception}, which integrates domain randomization features into its pipeline. Unity Perception works by simulating a scene, and then rendering each simulated frame from the perspective of a virtual camera. 
 
-When setting up the simulation, we specify the number of iterations to simulate and the number of frames to render for each iteration. At the beginning of each iteration, we call a set of randomizers. These set one of the domain variables for the iteration, such as the pose of an object or the colour of the light source, by extracting a value from a probability distribution. The scene is then updated according to the extracted variables, rendered, and the associated ground truth saved.
+When setting up the simulation, we specify the number of iterations to simulate and the number of frames to render for each iteration. At the beginning of each iteration, we call a set of randomizer scripts. These set one of the domain variables for the iteration, such as the pose of an object or the colour of the light source, by extracting its value from a pre-defined probability distribution. The scene is then updated according to these variables, rendered, and the associated ground truth saved.
 
 \begin{figure}
     \centering
     \includegraphics[width=0.6\textwidth]{screwdataset/ScrewDataset.png}
-    \caption{One of the images generated with Unity's Perception package for training our model, with a zoom-in on the screw.}
+    \caption{One of the images generated with Unity's Perception package for training our model.}
     \label{fig:screwdataset}
 \end{figure}
 
-As a test case, we decided to generate a pose estimation dataset for a standard M6x30 hexagonal head screw. This is a very challenging object, as it is small and symmetric (the reason why symmetric objects are difficult for pose estimation is explained in depth in appendix A.2). The model of the M6x30 screw was obtained from the FreeCAD Fasteners workbench\cite{Fasteners} and colored with a metallic texture.
+As a test case, we decided to generate a pose estimation dataset for a standard M6x30 hexagonal head screw. This is a very challenging object, as it is small and symmetric. Symmetric objects have always been difficult for pose estimation algorithms, due to reasons explained in depth in appendix 1. The model of the M6x30 screw was obtained from the FreeCAD Fasteners workbench\cite{Fasteners} and colored with a metallic texture.
 
 The domain for this dataset consists of images of the screw placed inside of a scene: thus the primary domain variables are the pose, the background, and the lighting. We used a custom randomizer to set position and rotation for each iteration, and default randomizers provided as part of the Perception package to generate a background, composed by random 3D shapes placed with random positions, orientations and textures. Finally, we used a custom randomizer to set the lighting color, intensity and origin. A sample image from this dataset appears in figure \ref{fig:screwdataset}.
 
@@ -38,7 +38,7 @@ We can then interface the output of this procedure with EfficientPose using a co
 
 \subsection{Training}
 
-The original version of EfficientPose is trained on LINEMOD. However, the specifics of LINEMOD and of our own dataset are widely different: LINEMOD has around 1200 images per object, and only about 200 of these are used for training, while our dataset has 10000 images, 9000 of which are used for training. This means that we must set proper training parameters for our own situation.
+The original version of EfficientPose is trained on LINEMOD. However, the specifics of LINEMOD and of our own dataset are widely different: LINEMOD has around 1200 images per object, and only about 200 of these are used for training, while our dataset has 10000 images, 9000 of which are used for training. This means that we must set proper training parameters for our own dataset.
 
 First, we reduced the number of epochs from 5000 to 100. Since our dataset contains 45 times more images, these two values represent a similar training time. EfficientPose also by default evaluates the model only every 10 epochs due to the small epoch size; we change this value to evaluate at the end of every epoch.
 
@@ -56,7 +56,7 @@ The initial and minimum learning rates are mantained identical to EfficientPose'
 
 After 100 epochs of training, the progress of which is shown in figure \ref{fig:screwdataset_training}, the model has a final ADD of 22.2\%, with a peak value obtained during training of 24.8\%, much lower than the 97.35\% reported by EfficientPose on LINEMOD. We can hypothesize that the reason for this performance gap is that the rendered dataset is much more difficult than LINEMOD, since we are dealing with a very small, symmetric object hidden inside a chaotic, colorful background with widely differing light conditions.
 
-Another serious issue, that is more difficult to convey on paper, is that the model is not able to bridge the reality gap: while testing in real-life scenarios, it failed to identify the screw in most conditions, let alone produce accurate estimations. This means that it generalises poorly outside of the simulated environment, making it essentially unuseable.
+Another serious issue, that is more difficult to convey on paper, is that the model is not able to bridge the reality gap: while testing in real-life scenarios, it failed to identify the screw in most conditions, let alone produce accurate estimations. This means that it generalises poorly outside of the simulated environment, making it essentially unuseable in real applications.
 
 \section{Augmented Reality Datasets}
 
@@ -164,9 +164,9 @@ With this method, for each background we can quickly generate a series of traini
     \label{fig:ScrewPoseAugmented}
 \end{figure}
 
-The training dataset we generated has two major weaknesses. First, there is a limited number of background images, which means that the model has a finite number of camera positions to learn from. This may lead to overfitting and unreliable results for positions that don't have sufficient representation. Second, it is difficult to randomize light intensity and color for the background images inside Unity, as it is decoupled from the same settings for the 3D models.
+The dataset generated with the previous methodology has two major weaknesses. First, there is a limited number of background images, which means that the model has a finite number of camera positions to learn from. This may lead to overfitting and unreliable results for positions that don't have sufficient representation. Second, it is difficult to randomize light intensity and color for the background images inside Unity, as it is decoupled from the same settings for the 3D models.
 
-We can remedy these issues using data augmentation. This is a technique that involves applying random changes to data during training, similarly to how domain randomization would randomize them during generation. EfficientPose already provides two data augmentation methods: 6DoF and color augmentation. 6 Degree-of-Freedom augmentation involves randomly rescaling and rotating the input image and consequently adjusting the ground truth, so as to greatly increase the number of possible poses each image can provide. Color augumentation instead implements RandAugment\cite{RandAugment} to change the color and grain for the entire image. Applying both these methods results in images such as the one depicted in figure \ref{fig:ScrewPoseAugmented}, conveniently fixing the issues of our dataset.
+We can remedy these issues using data augmentation. This is a technique that involves applying random changes to data during training, similarly to how domain randomization would apply them during dataset generation. EfficientPose already provides two data augmentation methods: 6 Degree-of-Freedom augmentation and color augmentation. 6 Degree-of-Freedom augmentation involves randomly rescaling and rotating the input image and consequently adjusting the ground truth, so as to greatly increase the number of possible poses each image can provide. Color augumentation instead implements RandAugment\cite{RandAugment} to change the color and grain for the entire image. Applying both these methods results in images such as the one depicted in figure \ref{fig:ScrewPoseAugmented}, conveniently fixing the issues of our dataset.
 
 Other training parameters are identical to the previous attempt with the fully generated dataset: 100 epochs, with an 80\% learning rate reduction if the model stagnates for 5 epochs.
 
@@ -186,7 +186,7 @@ Other training parameters are identical to the previous attempt with the fully g
             Average & 0.9615 & 2.4271 & 82.05\% \\
             \hline    
         \end{tabular}
-        \caption{Evaluation of the Average Precision, Average Symmetric Distance, and ADD-S metrics on the partially rendered dataset after training.}
+        \caption{Evaluation of the Average Precision, Average Symmetric Distance, and ADD-S metrics on the augmented reality dataset after training.}
         \label{tab:screwpose}
     \end{center}
 \end{table}
@@ -205,7 +205,7 @@ Furthermore, the model is capable of generalising to real life situations withou
 
 \begin{figure}[ht]
     \includegraphics[width=\textwidth]{screwpose_inferencing.png}
-    \caption{Four images displaying pose estimations from the network. The left two are part of the evaluation dataset and display ground truths with green bounding boxes, the right two are captures from a real camera in the testing environment.}
+    \caption{Four images displaying pose estimations from the network for the augmented reality dataset. The left two are part of evaluation and display ground truths with green bounding boxes, the right two are captures from a real camera in the testing environment.}
     \label{fig:screwpose_inferencing}
 \end{figure}
 
@@ -219,7 +219,7 @@ Thus we want to ascertain if it is viable to use pose estimation techniques to t
 
 \subsection{Dataset Generation and Training}
 
-The first step to working with neural networks is again the generation of the datasets required for training and evaluation. For our task, we are considering the assembly of a set of modular button boards. We have two boards, one with two slots, and one with three slots. These slots can be filled in any order with one of three buttons: a larger safety button with a mushroom cap, and two smaller buttons with different designs on their faces, but identical shape. The CAD models for these objects were available online from the supplier's website, and we used Blender to color them appropriately. Renders for these objects are depicted in figure \ref{fig:buttonpose_objects}.
+The first step to working with neural networks is again the generation of the datasets required for training and evaluation. For our task, we are considering the assembly of a set of modular button boards. We have two boards, one with two slots, and one with three slots. These slots can be filled in any order with one of three buttons: a larger safety button, and two smaller buttons with different designs on their faces, but identical shape. The CAD models for these objects were available online from the supplier's website, and we used Blender to color them appropriately. Renders for these objects are depicted in figure \ref{fig:buttonpose_objects}.
 
 \begin{figure}[ht]
     \includegraphics[width=0.6\textwidth]{buttonpose_objects.png}
@@ -229,9 +229,11 @@ The first step to working with neural networks is again the generation of the da
 
 To generate the dataset images we can use the same method used for the Augmented Reality dataset, however we have a few noticeable differences that require consideration. The first obvious one is that we would like to represent the buttons not only while they are freely placed on the table surface, but also when they are slotted into a board. This is achievable by positioning the button with the same pose as the board, and then applying a final roto-translation that shifts the button into a slot. We can compute these transformations in advance and simply apply them when necessary.
 
-The second, more insidious issue has to do with the two buttons with identical shape. These buttons are distinguishable only by the different designs on their faces, but when placing them randomly, there is a good chance that these faces are not visible. This leads to a situations where it is impossible to differentiate between the two, causing a drastic drop in performance, as during training the network will percieve a large number of false positives.
+One important thing to note is that these roto-translations depend on the shape of the button: thus the safety button will require different values compared to the other two.
 
-To solve this issue, we can add a fictional object to the dataset, the "unidentified button". Simply put, we categorize buttons without their unique face visible as a new object class, since it is impossible for the network to directly classify them as one type or the other.
+The second, more insidious issue has to do with the two smalle buttons with identical shape. These buttons are distinguishable only by the different designs on their faces, but when placing them randomly, there is a good chance that these faces are not visible. This leads to a situations where it is impossible to differentiate between the two, causing a drastic drop in performance, as during training the network will percieve a large number of false positives.
+
+To solve this issue, we can add a fictional object to the dataset, the "unidentified button". Simply put, we categorize buttons without their unique face visible as a new object class, since it is impossible for the network to directly identify them as one type or the other.
 
 \begin{figure}[ht]
     \includegraphics[width=\textwidth]{buttonpose_placement.png}
@@ -239,7 +241,7 @@ To solve this issue, we can add a fictional object to the dataset, the "unidenti
     \label{fig:buttonpose_placement}
 \end{figure}
 
-We can use a simple geometric method to determine if a button's face is visible, explicated in figure \ref{fig:button_occlusion}. Considering the origin of the camera reference frame $O = [0, 0, 0]^T$, the button's pose is given by the translation vector $t$ and the rotation matrix R. $t$ also indicates the position of the center of the button $C$, due to it being the origin of the button's 3D model. If we then consider the vector $f = [f_x, f_y, f_z]^T$ indicating the position of the center of the button's face $F$ in the button's frame of reference, the position of this point in the camera frame is given by:
+We can use a simple geometric method to determine if a button's face is visible during generation, explicated in figure \ref{fig:button_occlusion}. Considering the origin of the camera reference frame $O = [0, 0, 0]^T$, the button's pose is given by the translation vector $t$ and the rotation matrix R. $t$ also indicates the position of the center of the button $C$, due to it being the origin of the button's 3D model. If we then consider the vector $f = [f_x, f_y, f_z]^T$ indicating the position of the center of the button's face $F$ in the button's frame of reference, the position of this point in the camera frame is given by:
 
 \begin{figure}
     \includegraphics[width=0.7\textwidth]{button_occlusion.png}
@@ -263,4 +265,136 @@ By making $\alpha$ explicit in this equation we obtain:
     \alpha = \cos^{-1}\left(\frac{t^Tt- b^Tb-f^Tf}{2||b||\cdot||f||}\right)
 \end{equation*}
 
-It is simple to verify geometrically that the button's face is occluded whenever $\alpha < 90\degree$, and viceversa. To avoid strange edge cases where the button's face is barely visible in the proximity of $\alpha = 90\degree$, we introduce a small buffer angle $\beta$, usually around 5\degree. Thus we categorize a button as unrecognizeable whenever $\alpha < 90\degree + \beta$.
+It is simple to verify geometrically that the button's face is occluded whenever $\alpha < 90\degree$, and viceversa. To avoid strange edge cases where the button's face is barely visible in the proximity of $\alpha = 90\degree$, we introduce a small buffer angle $\beta$, usually around 5\degree. Thus we categorize a button as unrecognizeable whenever $\alpha < 90\degree + \beta$, overwriting its class in the ground truths with the "unknown button" class.
+
+Thus we have a method for creating arbitrarily large datasets for our application. We decided to generate 20'000 images, where 18'000 are used for training and 2'000 for verification. Therefore we reduced the number of epochs to 40, and the patience for learning rate reduction to 3 epochs. All other parameters are identical to our previous attempts.
+
+\begin{figure}
+    \includegraphics[width=\textwidth]{buttonpose_training.png}
+    \caption{Evolution of the loss, AD-S and ADD-S metrics during training for the partially rendered dataset. The loss is computed as the AD-S metric on the training dataset.}
+    \label{fig:buttonpose_training}
+\end{figure}
+
+\begin{table}[ht]
+    \begin{center}
+        \begin{tabular}{|c||c|c|c|}
+            \hline
+            Object & AP & AD-S [mm] & ADD-S \\
+            \hline \hline
+            2-slot & 0.9990 & 3.5420 & 99.90\% \\
+            3-slot & 0.9985 & 3.9304 & 99.85\% \\
+            red button & 0.9260 & 1.9825 & 86.01\% \\
+            arrow button & 0.9349 & 2.0497 & 86.05\% \\
+            safety button & 0.9962 & 2.6053 & 98.01\% \\
+            unknown button & 0.9561 & 2.4757 & 82.95\% \\
+            \hline \hline
+            Average & 0.9685 & 2.76 & 92.13\% \\
+            \hline    
+        \end{tabular}
+        \caption{Evaluation of the Average Precision, Average Symmetric Distance, and ADD-S metrics on the buttons dataset after training.}
+        \label{tab:buttonpose}
+    \end{center}
+\end{table}
+
+Training resulted in abnormally good performance for the boards, reaching over 99\% ADD-S and AP for both. The larger safety button also obtained great results, with a 98\% ADD-S, while the other buttons achieved more middling performances, but still better than the 79.04\% ADD benchmark repored on Occlusion-LINEMOD.
+
+\begin{figure}[ht]
+    \includegraphics[width=\textwidth]{buttonpose_inferencing.png}
+    \caption{Four images displaying pose estimations from the network for the button dataset. The left two are part of evaluation and display ground truths with green bounding boxes, the right two are captures from a real camera in the testing environment.}
+    \label{fig:buttonpose_inferencing}
+\end{figure}
+
+\subsection{Thresholding}
+
+Now that we have a dataset and a model trained on it, we can begin the task of creating a method to identify the state of the overall assembly. There are two pieces to this assembly: buttons and the boards they're to be slotted in. The problem now becomes: given the position of a button and the position of a board, how does one determine whether the button is slotted into the board, and in which slot?
+
+A simple and intuitive way to handle this problem is through the computation of a distance metric: given a slot and a button, if the "distance" between the two is less than a threshold, we can reasonably affirm that the button is in the slot. We considered two different distance metrics for this task: center-to-center distance and average symmetric distance.
+
+Center-to-center distance is the distance between the estimated position of the center of the button $C$, and the position this center would have if the button was already in the slot, $C'$, as depicted in figure \ref{fig:center2center}. While the first position is a direct output of our network, the second one must be obtained from the succession of three roto-translations: one from the camera reference to the position of the board, which is a direct output of the network; a second to the position of the slot relative to the board, which is known for each slot; and the last one from the position of the slot to the position of the hypothetical button center, which varies based on the geometry of the button.
+
+\begin{figure}[ht]
+    \includegraphics[width=0.6\textwidth]{Center-to-center.png}
+    \caption{Depiction of the center-to-center distance from a button to a slot. In black is the estimated pose of the button, while in red is the estimated position of a button if it was hypothetically already in the slot.}
+    \label{fig:center2center}
+\end{figure}
+
+The average symmetric distance is instead identical to the AD-S computed as a metric during training and evaluation. Considering again the estimated pose of the button $(\text{R}, t)$ and the pose the button would have if it was considered in the slot $(\text{R}', t')$, the average distance is computed as:
+
+\begin{equation*}
+    \text{AD-S} = \frac{1}{n} \sum_{x_1 \in M} \min_{x_2 \in M} ||(\text{R}x_2 + \text{t}) - 
+    (\text{R}'x_1 + \text{t}')||_2
+\end{equation*}
+
+... where M is the set of the points composing the button's 3D model, and n is the number of points considered. While this metric has the advantage of considering differences in rotation, which center-to-center is unable to do, it is also much more demanding computationally, depending on the number of points considered.
+
+However, these metrics alone are insufficient to solve our problem. This is because, since each slot is in close proximity with others, for higher thresholds there will be conflicts where multiple slots are within range of the same button or multiple buttons are in range of the same slot, as depicted in figure \ref{fig:conflicts}.
+
+\begin{figure}[ht]
+    \includegraphics[width=0.8\textwidth]{buttons_conflict.png}
+    \caption{Schematic depiction of two hypothetical situations that would generate conflicts by placing multiple buttons within the threshold of a single slot or vice-versa.}
+    \label{fig:conflicts}
+\end{figure}
+
+To resolve these conflicts, we introduce an intuitive "double check" method that provides excellent results with minimal complexity. This method requires three steps:
+
+\begin{enumerate}
+    \item For each button, we assign it to the closest slot within the threshold, if there is one.
+    \item For each slot, we assign it to the closest button within the threshold, if there is one.
+    \item For each assignment, it is confirmed only if it is reciprocated, and otherwise it is ignored.
+\end{enumerate}
+
+An assignment from a slot to a button is considrered reciprocated only if the button is also assigned to the slot, and vice-versa
+
+\begin{figure}[ht]
+    \includegraphics[width=0.8\textwidth]{buttons_resolution.png}
+    \caption{Schematic depiction of the resolution of the conflicts previously depicted in figure \ref{fig:conflicts}. Green arrows represent reciprocating assignments, which are confirmed, while red arrows represent non-reciprocating assignments, which are ignored.}
+    \label{fig:resolution}
+\end{figure}
+
+Now that we have a way to resolve conflicts, we must select the optimal threshold that maximises the performance of our method. To do this we will use the concepts of precision and recall applied to our generated dataset. Given a binary classification problem such as ours (a button can either be in a slot or not), based on the output of our method we can build a confusion matrix as shown in table \ref{tab:cmatrix}.
+
+\begin{table}[ht]
+    \begin{center}
+        \begin{tabular}{c||c|c}
+            \space & Actual Positives & Actual Negatives\\
+            \hline\hline
+            Predicted Positives & True Positives (TP)& False Positives (FP)\\
+            \hline
+            Predicted Negatives & False Negatives (FN)& True Negatives (TN)\\
+        \end{tabular}
+        \caption{Generation of the confusion matrix.}
+        \label{tab:cmatrix}
+    \end{center}
+\end{table}
+
+From these values, precision and recall are defined as:
+
+\begin{align*}
+    \text{Precision} =& \frac{\text{TP}}{\text{TP}+\text{TN}} \\
+    & \\
+    \text{Recall} =& \frac{\text{TP}}{\text{TP}+\text{FN}}
+\end{align*}
+
+We want to maximise both of these metrics. To do this, we can plot them as a function of the threshold, and as a function of each other in a precision-recall graph, depicted in figure \ref{fig:precisionrecall}.
+
+\begin{figure}[ht]
+    \includegraphics[width=\textwidth]{precision-recall.png}
+    \caption{Precision and recall for both distance metrics on the button dataset. The point with the best F1 score is highlighted by a red circle.}
+    \label{fig:precisionrecall}
+\end{figure}
+
+As can be seen from the figure, higher thresholds greatly impact the precision of our model while lower thresholds greatly impact its recall. Overall we maintain high values, but our maximum recall is limited by the performance of the network to a maximum of abount 90\%. To select the optimal threshold, we consider the F1 score, which is a balanced function of precision and recall:
+
+\begin{equation*}
+    \text{F1} = 2\times\frac{\text{Precision}\times\text{Recall}}{\text{Precision}+\text{Recall}}
+\end{equation*}
+
+For the average symmetric distance method, this results in a maximum F1 score of 0.9369, corresponding to a threshold of 56 mm, while for the center-to-center method the maximum is 0.9255, corresponging to a 78 mm threshold. A few observations can be made with these results.
+
+First of all, for our application there is no great advantage in using average distance over center-to-center. Given the additional complexity and computation time, the increase in performance is not significant.
+
+Second is that we have an abnormally high threshold for both methods. This can be attributed to the generated dataset: by stating that the buttons can only be either inside a slot or placed on the surface, we are in fact considering an ideal situation where a hypothetical manipulator does not commit any errors in picking up and inserting the buttons in their slots. If botched attempts are considered in the dataset, it is likely that the optimal threshold will be lower, and that the average distance method, being more adaptable to situations with different rotations, may give better results than center-to-center.
+
+Finally, the threshold is also influenced by the probability distribution we used for generating the poses for the button dataset, which in our case being a uniform distribution resulted in a more spread-out placement, thus a higher optimal threshold. This is further compounded by the brute-force collision avoidance strategy implemented within the placement algorithm: if a placement attempt would generate an intersection with an already placed object, the placement was simply re-attempted from scratch. This naturally results in less conditions where dataset objects are in close proximity, and therefore in a higher threshold.
+
+However it must be noted that creating a real-life dataset for determining the optimal threshold is much more approachable than creating a dataset for training a pose estimation network, as the ground truths are easy to aquire without any errors.

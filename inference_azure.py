@@ -27,7 +27,7 @@ def main():
 
     # Model input parameters
     phi = 0
-    path_to_weights = "./weights/buttonpose_40_epochs.h5"
+    path_to_weights = "./weights/buttonpose_2.h5"
     class_to_name = {0 : "2-slot", 1 : "3-slot", 2 : "mushroombutton", 3 : "arrowbutton", 4 : "redbutton", 5 : "unknownbutton"}
     score_threshold = 0.5
     translation_scale_norm = 1000.0     # conversion factor from m to mm

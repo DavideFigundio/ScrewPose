@@ -352,48 +352,5 @@ An assignment from a slot to a button is considrered reciprocated only if the bu
     \label{fig:resolution}
 \end{figure}
 
-Now that we have a way to resolve conflicts, we must select the optimal threshold that maximises the performance of our method. To do this we will use the concepts of precision and recall applied to our generated dataset. Given a binary classification problem such as ours (a button can either be in a slot or not), based on the output of our method we can build a confusion matrix as shown in table \ref{tab:cmatrix}.
+In this way we can avoid most possible ambiguites that may result during evaluation of the semantic state.
 
-\begin{table}[ht]
-    \begin{center}
-        \begin{tabular}{c||c|c}
-            \space & Actual Positives & Actual Negatives\\
-            \hline\hline
-            Predicted Positives & True Positives (TP)& False Positives (FP)\\
-            \hline
-            Predicted Negatives & False Negatives (FN)& True Negatives (TN)\\
-        \end{tabular}
-        \caption{Generation of the confusion matrix.}
-        \label{tab:cmatrix}
-    \end{center}
-\end{table}
-
-From these values, precision and recall are defined as:
-
-\begin{align*}
-    \text{Precision} =& \frac{\text{TP}}{\text{TP}+\text{TN}} \\
-    & \\
-    \text{Recall} =& \frac{\text{TP}}{\text{TP}+\text{FN}}
-\end{align*}
-
-We want to maximise both of these metrics. To do this, we can plot them as a function of the threshold, and as a function of each other in a precision-recall graph, depicted in figure \ref{fig:precisionrecall}.
-
-\begin{figure}[ht]
-    \includegraphics[width=\textwidth]{precision-recall.png}
-    \caption{Precision and recall for both distance metrics on the button dataset. The point with the best F1 score is highlighted by a red circle.}
-    \label{fig:precisionrecall}
-\end{figure}
-
-As can be seen from the figure, higher thresholds greatly impact the precision of our model while lower thresholds greatly impact its recall. Overall we maintain high values, but our maximum recall is limited by the performance of the network to a maximum of abount 90\%. To select the optimal threshold, we consider the F1 score, which is a balanced function of precision and recall:
-
-\begin{equation*}
-    \text{F1} = 2\times\frac{\text{Precision}\times\text{Recall}}{\text{Precision}+\text{Recall}}
-\end{equation*}
-
-For the average symmetric distance method, this results in a maximum F1 score of 0.9369, corresponding to a threshold of 56 mm, while for the center-to-center method the maximum is 0.9255, corresponging to a 78 mm threshold. A few observations can be made with these results.
-
-First of all, in our application there is no great advantage in using average distance over center-to-center. Given the additional complexity and computation time, the increase in performance is not significant.
-
-Second is that we have an abnormally high threshold for both methods. This can be attributed to the generated dataset: by stating that the buttons can only be either inside a slot or placed on the surface, we are in fact considering an ideal situation where a hypothetical manipulator does not commit any errors in picking up and inserting the buttons in their slots. If botched attempts are considered in the dataset, it is likely that the optimal threshold will be lower, and that the Average Distance method, being more sensible to situations with different rotations, may give better results than Center-to-Center.
-
-Finally, the threshold is also influenced by the probability distribution we used for generating the poses for the button dataset, which in our case being a uniform distribution, resulted in a more spread-out placement, thus a higher optimal threshold. This is further compounded by the brute-force collision avoidance strategy implemented within the placement algorithm: if a placement attempt would generate an intersection with an already placed object, the placement was simply re-attempted from scratch. This naturally results in less conditions where dataset objects are in close proximity, and therefore in a higher threshold.

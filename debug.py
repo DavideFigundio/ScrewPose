@@ -61,8 +61,8 @@ def parse_args(args):
     screwdataset_parser = subparsers.add_parser('screwpose')
     screwdataset_parser.add_argument('screwpose_path', help = 'Path to dataset directory (ie. /tmp/occlusion).')
 
-    screwdataset_parser = subparsers.add_parser('buttonpose')
-    screwdataset_parser.add_argument('buttonpose_path', help = 'Path to dataset directory (ie. /tmp/occlusion).')
+    buttonpose_parser = subparsers.add_parser('buttonpose')
+    buttonpose_parser.add_argument('buttonpose_path', help = 'Path to dataset directory (ie. /tmp/occlusion).')
     
     
     parser.add_argument('--rotation-representation', help = 'Which representation of the rotation should be used. Choose from "axis_angle", "rotation_matrix" and "quaternion"', default = 'axis_angle')

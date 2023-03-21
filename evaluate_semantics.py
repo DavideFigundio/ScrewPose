@@ -124,6 +124,7 @@ def evaluate_threshold(start_index, stop_index, capturedata, boardstates, button
 
     return Cmatrix_AD, Cmatrix_CD
 
+
 def estimate_boardstate_AD(capture, buttons, boards, translations_to_slots, name_to_model, threshold):
     '''
     Estimates the semantic state of a frame using the Average Distance method.
@@ -226,6 +227,7 @@ def estimate_boardstate_CD(capture, buttons, boards, translations_to_slots, thre
     #return parse_board_estimations(buttons, boards, boardstate)
     return alternative_parse_boardstate_estimations(boards, boardstate)
 
+
 def parse_board_estimations(buttons, boards, boardstate):
     '''
     Resolves conflicts between plausible placements based on the shortest distance.
@@ -268,6 +270,7 @@ def parse_board_estimations(buttons, boards, boardstate):
 
     return final_boardstate
 
+<<<<<<< Updated upstream
 def alternative_parse_boardstate_estimations(boards, boardstate):
     '''
     Resolves conflicts between plausible placements based on the shortest distance.
@@ -299,6 +302,8 @@ def alternative_parse_boardstate_estimations(boards, boardstate):
     return final_boardstate
 
 
+=======
+>>>>>>> Stashed changes
 
 def evaluate_boardstate_symmetrical(estimated_boardstate, gt_boardstate):
     '''
@@ -333,8 +338,7 @@ def evaluate_boardstate_symmetrical(estimated_boardstate, gt_boardstate):
             Cmatrix.add(Cmatrix_reversed)
     
     return Cmatrix
-
-        
+    
 
 def evaluate_board(estimated_state, gt_state):
     '''
@@ -361,6 +365,7 @@ def evaluate_board(estimated_state, gt_state):
     
     return Cmatrix
 
+
 def generate_empty_boardstate_dict(boards):
     '''
     Generates an empty boardstate object where each each board is associated with a list of slots, and each slot is represented
@@ -368,13 +373,13 @@ def generate_empty_boardstate_dict(boards):
     '''
     return {board:[{} for i in range(boards[board])] for board in boards}
 
+
 def generate_empty_boardstate(boards):
     '''
     Generates an empty boardstate object where each each board is associated with a list of slots, and each slot is represented
     with a string.
     '''
     return {board:["empty" for i in range(boards[board])] for board in boards}
-
 
 
 def save_to_csv(data, filepath):

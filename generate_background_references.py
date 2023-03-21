@@ -4,20 +4,21 @@ import numpy as np
 import json
 from pyquaternion import Quaternion
 
-UNDISTORT = False
-SAVE_VERIFICATION = False
+UNDISTORT = True
+SAVE_VERIFICATION = True
 
 # Takes a directory of images and for each image saves all poses of a chosed ArUco marker in a json file for use in Unity.
 def main():
     #dirpath = "../background/realsense"  # Path to image directory
-    dirpath = "../background/azure"
+    #dirpath = "../background/azure"
+    dirpath = "captures"
 
     distdirpath = "../background_undistorted/"
     verpath = "../verification/"
     #jsonFile = "poses_rs.json"     # Name of json file
     jsonFile = "poses_azure.json"
     markerLength = 0.04         # Marker size [m]
-    markerID = 23               # Reference marker ID
+    markerID = 23            # Reference marker ID
 
     dictionary = cv2.aruco.Dictionary_get(cv2.aruco.DICT_6X6_250)
     arcucoParams = cv2.aruco.DetectorParameters_create()
@@ -31,7 +32,7 @@ def main():
     #distortionMatrix = np.array([0., 0., 0., 0., 0.], dtype = np.float32)
 
     posedict = dict()
-    total = 956
+    total = 50
     for i in range(total):
         imgname = str(i) + ".png"
         print("Currently reading: " + imgname, end='\r') #
@@ -48,7 +49,7 @@ def main():
                     if SAVE_VERIFICATION:
                         cv2.drawFrameAxes(image, cameraMatrix, distortionMatrix, rvects[j], tvects[j], 0.1)
                     posedict[i] = {"rotation": RodriguezToUnityQuaternion(rvects[j][0]), "translation": {'x': tvects[j][0][0], 'y': -tvects[j][0][1], 'z': tvects[j][0][2]}}
-        
+
         if UNDISTORT:
             dst = cv2.undistort(original_image, cameraMatrix, distortionMatrix, None)
             cv2.imwrite(join(distdirpath, imgname), dst)

@@ -135,3 +135,95 @@ We consider the optimal threshold to be the one that maximises this value.
     \includegraphics[width=0.5\textwidth]{best_f1_example.png}
     \caption{Example of selecting the optimal threshold using the maximum of the F1 curve.}
 \end{figure}
+
+\section{Real-Life Experimental Setup}
+
+To test the effectiveness of our vision and semantics model, we will be implementing it in a real life situation where we have to complete a simple assembly task. We will be using a Doosan A0509s robotic manipulator equipped with a pneumatic gripper, and an Azure Kinect camera. We will be re-utilizing previously developed code for this system that generates behaviour trees \cite{behavior_tree} to drive the robot based on previous demostrations of actions and their effects on the scene.
+
+First, we must describe each scene using a list of predicates. These predicates are first-order logic functions that can be either true or false, and must be evaluated each time we obtain new information on the scene. A list of these predicates and their descriptions is supplied in figure \ref{predicateslist}.
+
+\begin{table}[ht]
+    \begin{center}
+        \begin{tabular}{cc}
+            Predicate & Description \\
+            \hline \hline
+            IsGripperEmpty(gripper) & True when no objects are in the gripper. \\
+            \hline
+            IsGrapsed(Button, Gripper) & True when the button is grasped by the gripper. \\
+            \hline
+            IsButtonInSlot(Button, Slot) & True when the button is inserted in the slot. \\
+            \hline
+            IsSlotEmpty(Slot) & True when no buttons are in the slot.\\
+        \end{tabular}
+        \caption{List of predicates used to describe scenes in our application, with descriptions.}
+        \label{predicateslist}
+    \end{center}
+\end{table}
+
+Once these predicates are available and can be evaluated, we can "teach" the robot to perform actions through kinesthetic demostrations. During these demostrations, the robot, moved by a human operator, will modify the environment and thus change the state of the scene. Since this state can be described using a list of predicates, we can save the differences between the inital state and the final state to understand the pre-requisites and consequences of each action in predicate form. We then use Planning Domain Definition Language (PDDL) \cite{pddl} to define each action and unite these definitions into a domain description. For example, if we take our task of picking up a button and inserting it into a slot, the states would be as described in figure \ref{predicatesevolutions}.
+
+\begin{figure}[ht]
+    \subfloat[Initial State]{
+        \begin{tabular}{c}
+            Predicates: \\
+            \hline
+            IsSlotEmpty(slot) \\
+            IsGripperEmpty(gripper) \\
+            ... \\
+        \end{tabular}
+    }
+
+    \subfloat[Intermediate State]{
+        \begin{tabular}{c}
+            Predicates: \\
+            \hline
+            IsSlotEmpty(slot) \\
+            IsGrasped(button, gripper) \\
+            ...\\
+        \end{tabular}
+    }
+
+    \subfloat[Final State]{
+        \begin{tabular}{c}
+            Predicates: \\
+            \hline
+            IsButtonInSlot(button, slot) \\
+            IsGripperEmpty(gripper) \\
+            ...\
+        \end{tabular}
+    }
+
+    \caption{Evolution of the state, expressed as a list of predicates, during the pick-up and insertion of a button into a slot.}
+    \label{predicatesevolutions}
+\end{figure}
+
+The domain for this task would then contain a list of the possible predicates, and two actions: the evolution from the initial state to the intermediate state (picking up the button) and the evolution from the intermediate state to the final state (inserting it into the slot), shown in figure \ref{pddlactions}.
+
+\begin{figure}
+    \subfloat[action_0 (Picking up a button)]{
+        \begin{tabular}{c|c|c}
+            Parameters & Preconditions & Effects \\
+            \hline
+            gripper & IsGripperEmpty(gripper) & !IsGripperEmpty(gripper) \\
+            button & \space & IsGrasped(button) \\
+        \end{tabular}
+    }
+    \subfloat[action_1 (Inserting a button into a slot)]{
+        \begin{tabular}{c|c|c}
+            Parameters & Preconditions & Effects \\
+            \hline
+            button & IsGrasped(button) & !IsGrasped(button) \\
+            slot & IsSlotEmpty(slot) & !IsSlotEmpty(slot) \\
+            gripper & \space & IsGripperEmpty(gripper) \\
+            \space & \space & IsButtonInSlot(button, slot) \\
+        \end{tabular}
+    }
+
+    \caption{Actions with their parameters, preconditions and effects as saved by PDDL for our task.}
+    \label{pddlactions}
+\end{figure}
+
+We then define an init and goal for our planner, which are the state we are starting from and the final state we want to achieve, compact both of these into the "problem definition". Inputting the definition and the domain into a PDDL planner then gives us the set of actions we need to perform, (in this case action_0 and the action_1), which we can use to then build our behaviour tree.
+
+The main modification applied to the previous code in this approach, apart from changing the predicates to suit our needs, is the shift from a continuously evaluated model to a discretely evaluated model. The reason for this change is the susceptibility of the vision model to false positives for previously unidentified objects. More information on this can be found in section \ref{false_positives_issue}, but essentially in this manner we ensure that the state is evaluated only when the gripper and eventual human operator are outside of the camera's field of view.
+

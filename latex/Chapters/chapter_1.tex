@@ -2,12 +2,24 @@
 
 \section{Thesis purpose}
 
-The main contribution of this work is.... 
+Perception has always been a fundamental task in the field of robotics. When a robot must interact and modify the environment in an automated manner with, proper knowledge of its surroundings via sensors and data processing is of crucial importance.
 
+One of the most readily available, and at the same time inherently complex sensors applicable to such a scenario is the color camera. Due to its multiplicity of outputs, their high volume and the complexity of their interconnections, cameras have always been difficult to use inside of an automated control loop. However, advances in Convolutional Neural Networks (CNNs) have seen machine learning approaches widely applied to the field of image processing. Neural Networks excel in this field as they are perfectly suited to face the challenges described above, being capable of modelling complex functions with multiple inputs through proper training.
+
+Two particular subfields of image processing that have advanced by leaps and bounds due to the introduction of CNNs are object identification and pose estimation. Object identification tackles the problem of verifying whether an image contains a particular object, while pose estimation techniques provide the position and orientation of the detected object in relation to the camera.
+
+While these tasks are very relevant to robotics, machine learning approaches bring about many challenges in their application, starting with the necessity of acquiring large amounts of labelled data for training and ending with their black-box nature, limiting the possibility of properly analyzing or predicting their behavior.
+
+Our objective in this thesis is therefore to verify the applicability and performance of a state-of-the-art 6D pose estimation CNN to a robotics scenario, and the difficulties involved in doing so.
 
 \section{Thesis achievements}
-In this thesis the following objectives have been achieved...
+In this thesis the following objectives have been achieved.
 
+We demonstrate an approach for quickly and easily generating large amounts of synthetic labelled data for training a pose estimation network. This method provides realistic images for a small number of objects of interest in a set environment, noticeably simplifying the laborious and expensive data acquisition required for machine learning. We then trained a network on this data and analyzed its performance.
+
+We also developed a method that uses the pose prediction output from the neural network to estimate the overall semantic state of a scene, and tested its reliability in a simple assembly scenario.
+
+Finally, by combining the results of the previous two methods, we applied the complete system in a real-world application to verify its overall performance. 
 
 \section{Thesis structure}
-The rest of this thesis is organized as follows.
+The rest of this thesis is organized as follows. In chapter 2 we will examine the current state-of-the-art for pose estimation approaches. In chapter 3 we will give some background on the pose estimation network we chose as the basis of our approach, EfficientPose. In chapter 4 we will go over our methodologies and in chapter 5, the metrics and experiments used to evaluate them. Finally, the results of our experiments are laid out in chapter 6, with chapter 7 being the conclusion.

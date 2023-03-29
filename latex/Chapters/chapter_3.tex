@@ -29,13 +29,13 @@ Both of these parent networks are based on the concept of scalability: the possi
 
 The backbone of this approach is EfficientNet: a network, or more precisely a family of networks, that was designed using Network Architecture Search (NAS, \cite{NAS}) to provide an optimal ratio of depth, width and resolution. This allows it to obtain a performance that is similar or better than other backbone networks while requiring much fewer parameters, thus greatly lowering computational costs.
 
-EfficientDet then expands on EfficientNet by adding a Feature Pyramid Network (FPNm \cite{FPN}). These networks perform multi-scale feature fusion, combining data from low-resolution, semantically strong layers with data from high-resolution, semantically weak layers. In particular, EfficientDet uses a new form of bi-directional feature pyramids, providing multiple top-down and bottom-up paths with learnable weights. The outputs of this feature network are then fed into multiple subnetworks that use them to perform single tasks, such as object class and 2-D bounding box estimations.
+EfficientDet then expands on EfficientNet by adding a Feature Pyramid Network (FPN \cite{FPN}), which performs multi-scale feature fusion, combining data from low-resolution, semantically strong layers with data from high-resolution, semantically weak layers. In particular, EfficientDet uses a new form of bi-directional feature pyramids, providing multiple top-down and bottom-up paths with learnable weights. The outputs of this feature network are then fed into multiple subnetworks that use them to perform single tasks, such as object class and 2-D bounding box estimations.
 
-One advantage EfficientDet has over previous 2-D object detectors is that it is single-shot: while other methods require an intermediate region proposal step, EfficientDet performs inference directly on the input image. This means that it requires a significantly lower computational costs, while maintaining state-of-the-art performance.
+One advantage EfficientDet has over previous 2-D object detectors is that it is single-shot: while other methods require an intermediate region proposal step, EfficientDet performs inference directly on the input image. This means that it requires significantly lower computational costs, while maintaining state-of-the-art performance.
 
 \section{Methodology}
 
-EfficientPose expands on EfficientDet's architecture with the addition of two additional subnets. These predict translation and rotation for each object class. Since these networks are relatively small, the additional computational costs are minimal.
+EfficientPose expands on EfficientDet's architecture with the addition of two additional subnets, which predict translation and rotation for each object class. Since these networks are relatively small, the additional computational costs are minimal.
 
 The rotation network outputs a vector $R \in \mathbb{R}^3$ containing a minimal representation of the rotation in Rodrigues angles, and then employs an additional iterative refinement strategy similar to what is seen in other pose refinement methods. Both the network size and the number of iterations are controlled by the hyperparameter $\phi$.
 

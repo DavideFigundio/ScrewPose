@@ -1,6 +1,6 @@
 \chapter{Methodology}
 
-In this chapter we will go over the methods used to build and train our own pose estimation model. These are structured into four sections, depending on the strategies implemented and their objective.
+In this chapter we will go over the methods used to train our own pose estimation model. These are structured into three sections, depending on the strategies implemented and their objective.
 
 Our starting point is the EfficientPose pose estimation network, as described in the previous chapter. The first section describes our attempt to train this network using purely synthetic data, with the objective of verifying whether it is possible to facilitate the laborious real-world dataset acquisition phase that is considered to be a prerequisite for deep learning.
 
@@ -12,7 +12,7 @@ Finally, the third section eploits this method to generate a dataset for new obj
 
 \subsection{Motivations and Objective}
 
-Now that we have a pose estimation network, we must train it in order to suit our own needs. In the vast majority of situations, the objects we would like to identify will not be present in any available dataset: therefore the first essential step to developing our model is the creation of our own datasets for training and evaluation.
+Since we are starting with a given pose estimation network, we must train it in order to suit our own needs. In the vast majority of situations, the objects we would like to identify will not be present in any available dataset: therefore the first essential step to developing our model is the creation of our own datasets for training and evaluation.
 
 These datasets consist of a collection of images containing the object we wish to track, with associated ground truths encoding the pose of the tracked object for each image. Collecting this data in the real world is tedious and difficult, considering both the number of samples required for deep learning, and that any errors or biases will strongly affect the perfomance of the trained model.
 
@@ -233,12 +233,12 @@ Now that we have a dataset and a model trained on it, we can begin the task of c
 
 We handle this using an intuitive three step method:
 \begin{enumerate}
-    \item For each button and slot, we compute a metric that represents the button's "distance" from that slot.
-    \item We compare this distance to a threshold: if it is less than this value, the button is considered a viable candidate for filling the slot.
+    \item For each button and slot, we compute a \emph{distance metric} that represents the button's "distance" from that slot.
+    \item We compare this metric with a \emph{distance threshold}: if it is less than this value, the button is considered a viable candidate for filling the slot.
     \item We resolve conflicts between multiple buttons competing for the same slot and vice-versa.
 \end{enumerate}
 
-For distance metrics, we considered two possible candidates: Center-to-Center distance and Average Symmetric Distance.
+For \emph{distance metrics}, we considered two possible candidates: Center-to-Center distance and Average Symmetric Distance.
 
 \begin{figure}[ht]
     \includegraphics[width=0.6\textwidth]{Center-to-center.png}
@@ -257,7 +257,7 @@ The Average Symmetric Distance is instead identical to the AD-S computed as a me
 
 where M is the set of the points composing the button's 3D model, and n is the number of points considered. While this metric has the advantage of considering differences in rotation, which Center-to-Center is unable to do, it is also much more demanding computationally, depending on the number of points considered.
 
-Once we have a distance metric, it is necessary to develop a conflict resolution algorithm. This is of fundamental importance for higher values of the threshold, since multiple slots will be within range of the same button or multiple buttons will be in range of the same slot, as depicted in figure \ref{fig:conflicts}.
+Once we have a \emph{distance metric}, it is necessary to develop a conflict resolution algorithm. This is of fundamental importance for higher values of the threshold, since multiple slots will be within range of the same button or multiple buttons will be in range of the same slot, as depicted in figure \ref{fig:conflicts}.
 
 \begin{figure}[ht]
     \includegraphics[width=0.8\textwidth]{buttons_conflict.png}

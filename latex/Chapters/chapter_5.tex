@@ -2,11 +2,7 @@
 
 In this chapter we will go over the various experiments and metrics used to evaluate the performance of our methods. This information is subsequently divided into three sections.
 
-In the first section we will show the metrics used to describe the performance of the pose estimation network.
-
-In the second section we will then show how we evaluated the performance of our semantic meaning extraction strategy.
-
-Finally, in the third section we will discuss the experimental setup we used to test the performance of our complete model in a real-life robotics application.
+In the first section we will show the metrics used to describe the performance of the pose estimation network. In the second section we will then show how we evaluated the performance of our semantic meaning extraction strategy. Finally, in the third section we will discuss the experimental setup we used to test the performance of our complete model in a real-life robotics application.
 
 \section{Evaluation Metrics for Pose Esitmation and Object Detection}
 
@@ -14,14 +10,14 @@ Most pose estimation and object detection methods share a common set of metrics 
 
 \subsection{Average Precision}
 
-The performance of object detectors and 2D bounding box regressors is usually evaluated using median Average Precision (mAP), which is a descriptor of the reliability of a method's predictions. It exploits the intersection over union (IoU), computed as:
+The performance of object detectors and 2D bounding box regressors is usually evaluated using Average Precision (AP), which is a descriptor of the reliability of a method's predictions. It exploits the intersection over union (IoU), computed as:
 
 \begin{equation*}
     \text{IoU} = \frac{B_{GT} \cap B_{P}}{B_{GT} \cup B_{P}}
     \label{eq:IoU}
 \end{equation*}
 
-where $B_{GT}$ is the area of the ground truth bounding box and $B_{P}$ is the area of the network's predicion. A prediction is considered true if its IoU is greater than a threshold; based on this, we can generate the model's confusion matrix, as described in table \ref{confusionmatrix}.
+where $B_{GT}$ is the area of the ground truth bounding box and $B_{P}$ is the area of the network's predicion. A prediction is considered true if its IoU is greater than a \emph{threshold}; based on this, we can generate the model's confusion matrix, as described in table \ref{confusionmatrix}.
 
 \begin{table}[ht]
     \begin{center}
@@ -44,13 +40,13 @@ This matrix is the basis for the definition of the precision and recall metrics.
     \text{Recall (R)} &= \frac{\text{TP}}{\text{TP} + \text{FN}}
 \end{align*}
 
-Precision and recall both depend on the value of the threshold: smaller thresholds will result in a more restrictive model, thus less false positives and more false negatives, high precision and low recall, while high thresholds will result in the opposite: more false positives, less false negatives, low precision and high recall.
+Precision and recall both depend on the value of the IoU \emph{threshold}: larger values will result in a more restrictive model, thus less false positives and more false negatives, high precision and low recall, while smaller values will result in the opposite: more false positives, less false negatives, low precision and high recall.
 
-It is common practice to plot the precision as a function of the recall in what is called a precision-recall curve, $P = f(R)$. Each point in the curve represents a value of the threshold, corresponding to its own confusion matrix and subsequent metrics. An example plot is shown in figure \ref{example_pr}.
+It is common practice to plot the precision as a function of the recall in what is called a precision-recall curve, $P = f(R)$. Each point in the curve represents a value of the \emph{threshold}, corresponding to its own confusion matrix and subsequent precision and recall metrics. An example plot is shown in figure \ref{example_pr}.
 
 \begin{figure}[ht]
     \includegraphics[width=0.6\textwidth]{example_pr_curve.png}
-    \caption{Example of precision recall curves. The red line indicates a model with no skill at a task, thus zero precision; the blue line a model with some skill; the red line is the ideal behavior with maximum precision and recall at all times.}
+    \caption{Example of precision recall curves. The red line indicates a no-skill model with zero precision; the blue line a model with some skill; the green line is the ideal behavior with maximum precision and recall at all times.}
     \label{example_pr}
 \end{figure}
 
@@ -60,15 +56,10 @@ At this point we can describe the Average Precision (AP) as the mean value of th
     \text{AP} = \int_{0}^{1} f(R)dR
 \end{equation*}
 
-The median Average Precision is then obtained as the average AP over all object classes:
-
-\begin{equation*}
-    \text{mAP} = \frac{1}{n} \sum_{i=1}^{n} \text{AP}_{i}
-\end{equation*}
-
-Therefore it is a real value between 0 and 1, with 0 representing the model with no skill, and 1 representing the ideal behavior.
+Therefore it is a real value between 0 and 1, with 0 representing the model with zero precision, and 1 representing the ideal behavior.
 
 \subsection{Average Distance and ADD}
+\label{add_description}
 
 Evaluation of pose estimation methods is almost exclusively done using the ADD metric, and by extension the Average Distance (AD). While the first is an indicator of the percentage of correct estimations, similar in a sense to mAP, the second is instead unique to pose estimation.
 
@@ -81,7 +72,7 @@ Given $n$ points belonging to the 3D model $M$ of an object, the AD represents t
 
 The ADD is then given by the percentage of correct poses given by the model. A pose is correct if its AD metric is less than 10\% of the 3D model's diameter.
 
-This metric has been in use since before the introduction of neural networks to pose estimation, but it runs into serious issues when dealing with objects that have rotational symmetry. The reason for this is that these objects may present no visual differences with different rotations. For example, one image of the M6x30 screw we use for inferencing could correspond to six different poses, each varying 60\degree from the previous one. This means that the model will eventually stabilize at a value that minimizes the average error, which is ususally large.
+This metric has serious issues when dealing with objects that have rotational symmetries, as these objects present no visual differences for multiple different orientations. For example, one image of the M6x30 screw we use for inferencing could correspond to six different poses, each varying 60\degree from the previous one. This means that the model will eventually stabilize at a value that minimizes the average error, which is ususally large.
 
 To combat this issue, we use the Symmetric Average Distance (AD-S)\cite{PoseCNN} metric, defined as the average minimum distance between points in the predicted pose and the ground truth:
 
@@ -90,40 +81,28 @@ To combat this issue, we use the Symmetric Average Distance (AD-S)\cite{PoseCNN}
     (\hat{\text{R}}x_1 + \hat{\text{t}})||_2
 \end{equation*}
 
-This is very similar to the loss used in the ICP algorithm, as it only considers the distance from each point to its closest correspodent in the ground truth. Analogously to ADD, we then implement ADD-S as the percentage of correct poses.
+This considers the distance from each point to its closest correspodent in the ground truth. Analogously to ADD, we then implement ADD-S as the percentage of correct poses.
 
-Finally, we can introduce the Mixed Average Distance, which is defined as:
-
-\begin{equation*}
-    \text{ADD(-S)} = 
-    \begin{cases}
-        \text{ADD-S} & \text{if the object is symmetric,}\\
-        \text{ADD} & \text{otherwise.}
-    \end{cases}
-\end{equation*}
-
-We would like our model to have the highest possible ADD, however in an industrial environment it is important to also evaluate the AD. This is because for larger objects the ADD will tolerate greater estimation errors, as it is based on the diameter of the objects; these errors however may not be compatible with the precision required for a determined task.
+We would like our model to obatin the highest possible ADD-S, however in an industrial environment it is important to also evaluate the AD. This is because for larger objects the ADD will tolerate greater estimation errors, as it is based on the diameter of the objects; these errors however may not be compatible with the precision required for a determined task.
 
 \section{Semantics Evaluation Methodology}
 \label{semantics_method_section}
 
 To evaluate our semantic meaning extraction method, we must compare ground truth values for the semantic state of each scene, associated with its own image, with the outputs of our method.
 
-Our strategy therefore is to save the semantic state for each image during dataset generation. We then run the trained model on a subset of these images, coinciding with the test set, to obtain predictions, and then run our semantic meaning extraction method on the predictions.
+Our strategy therefore is to save the semantic state for each image during dataset generation as the ground truth. We then run the trained model on the test dataset to obtain pose and class predictions, use these results to run our semantic meaning extraction method, and evaluate the results against the ground truth. In particular we select a button-slot \emph{distance metric} and \emph{distance threshold} for each experiment, and compare the estimate of the state of each slot, for each board in each scene, against its true value.
 
-However, an issue arises from the application of this method. Due to the symmetry of the boards, it is impossible to determine visually which slot is which. For example in figure \ref{sym_eval}, the ground truth is that there is a button in the first slot, however the model outputs the button in the second slot. Visually, both of these interpretations are correct, since the board is symmetrical, however directly comparing the output with the ground truth results in two "false" values.
+However, an issue arises from this application: due to the symmetry of the boards, it is impossible to determine visually which slot is which. For example in figure \ref{sym_eval}, the ground truth is that there is a button in the first slot and the second slot is empty, however, the model may output that the button is in the second slot, while the first slot is empty. Visually, both of these interpretations are correct, since the board is symmetrical, but directly comparing the prediction with the ground truth results in two "false" values: a false negative for the first slot and a false positive for the second, resulting in an untrue evaluation.
 
 \begin{figure}[ht]
     \includegraphics[width=0.8\textwidth]{sym_evaluation.png}
-    \caption{Selection between the model's output and its symmetrical when evaluating the semantic state of a scene.}
+    \caption{Schematic depiction of a board with a button slotted into the first slot. The model runs into issues because the prediction and its symmetrical are visually undistinguishable and give different results.}
     \label{sym_eval}
 \end{figure}
 
-To combat this issue, we consider both the model's output, and its symmetrical condition, and take the results from the version with the greatest number of true values when compared with the ground truth. Therefore we compare both the model output and its symmetrical: since the symmetrical results in two "true" values, the final output of the comparison is two "true" values: a true negative and a true positive.
+To combat this issue, for each board we take into account both the model's prediction, and its symmetrical, obtained by simply reversing the order of its slots. For the example in figure \ref{sym_eval}, the prediction is [empty, button], therefore its symmetrical is [button, empty]. We then only consider the results from the version with the greatest number of "true" values when compared with the ground truth. For the example, since the symmetrical results in two "true" values, the final output of the comparison is two "true" values: a true positive and a true negative. These values are then summed for all estimations computed using a determined \emph{distance metric} and \emph{distance threshold}, and the sums are used to build a confusion matrix. Thus by evaluating a variety of \emph{distance thresholds}, we can build a precision-recall curve as described in the previous section.
 
-Once this issue has been resolved, we can build for each given threshold a confusion matrix as described in the previous section, and compute a precision-recall curve.
-
-To select the optimal threshold, we consider the F1 score, which is a balanced function of precision and recall, computed as:
+The selection of the optimal \emph{distance threshold} is done by considering the F1 score: a balanced function of precision and recall, computed as:
 
 \begin{equation*}
     \text{F1} = 2\times\frac{\text{Precision}\times\text{Recall}}{\text{Precision}+\text{Recall}}
@@ -131,99 +110,125 @@ To select the optimal threshold, we consider the F1 score, which is a balanced f
 
 We consider the optimal threshold to be the one that maximises this value.
 
-\begin{figure}[ht]
-    \includegraphics[width=0.5\textwidth]{best_f1_example.png}
-    \caption{Example of selecting the optimal threshold using the maximum of the F1 curve.}
-\end{figure}
-
 \section{Real-Life Experimental Setup}
 
-To test the effectiveness of our vision and semantics model, we will be implementing it in a real life situation where we have to complete a simple assembly task. We will be using a Doosan A0509s robotic manipulator equipped with a pneumatic gripper, and an Azure Kinect camera. We will be re-utilizing previously developed code for this system that generates behaviour trees \cite{behavior_tree} to drive the robot based on previous demostrations of actions and their effects on the scene.
+To test the effectiveness of our vision and semantics model, we implemented it in a real life situation where we have to complete a simple assembly task. We used a Doosan A0509s robotic manipulator equipped with a pneumatic gripper, and an Azure Kinect camera. We then re-implemented previously developed code for this system that generates behavior trees \cite{behavior_tree} to drive the robot based on previous demostrations of actions and their effects on the scene.
 
-First, we must describe each scene using a list of predicates. These predicates are first-order logic functions that can be either true or false, and must be evaluated each time we obtain new information on the scene. A list of these predicates and their descriptions is supplied in figure \ref{predicateslist}.
+Our contribution is mostly in the perception phase of this architecture, where we perform three tasks:
+
+\begin{enumerate}
+    \item From the RGB image provided by the camera, detecting objects of interest and estimating their position.
+    \item Understanding the state of the interactions between the detected objects.
+    \item Building a list of predicates that describes the scene.
+\end{enumerate}
+
+\begin{figure}[ht]
+    \includegraphics[width=\textwidth]{vision_system.png}
+    \caption{Schematic representation of the overall vision system.}
+\end{figure}
+
+While the first step is performed by the network, the final two are performed by what is known as the Scene Manager. The ultimate objective of the Scene Manager is to describe a scene using a set of predicates: first-order logic functions that can be either true or false. Their value is updated for each object whenever we obtain new information on the scene, with the ones resulting true then being compiled into the \emph{state}. For our application, this is accomplished using the predicates in table \ref{predicateslist}.
 
 \begin{table}[ht]
     \begin{center}
-        \begin{tabular}{cc}
-            Predicate & Description \\
-            \hline \hline
-            IsGripperEmpty(gripper) & True when no objects are in the gripper. \\
-            \hline
-            IsGrapsed(Button, Gripper) & True when the button is grasped by the gripper. \\
-            \hline
-            IsButtonInSlot(Button, Slot) & True when the button is inserted in the slot. \\
-            \hline
-            IsSlotEmpty(Slot) & True when no buttons are in the slot.\\
-        \end{tabular}
-        \caption{List of predicates used to describe scenes in our application, with descriptions.}
+        \resizebox{0.9\columnwidth}{!}{
+            \begin{tabular}{cc}
+                Predicate & Description \\
+                \hline \hline
+                IsGripperEmpty(gripper) & True when no objects are in the gripper. \\
+                \hline
+                IsGrasped(button, gripper) & True when the button is grasped by the gripper. \\
+                \hline
+                IsButtonInSlot(button, slot) & True when the button is inserted in the slot. \\
+                \hline
+                IsSlotEmpty(slot) & True when no buttons are in the slot.\\
+            \end{tabular}
+        }
+        \caption{List of predicates used to describe the state in our application.}
         \label{predicateslist}
     \end{center}
 \end{table}
 
-Once these predicates are available and can be evaluated, we can "teach" the robot to perform actions through kinesthetic demostrations. During these demostrations, the robot, moved by a human operator, will modify the environment and thus change the state of the scene. Since this state can be described using a list of predicates, we can save the differences between the inital state and the final state to understand the pre-requisites and consequences of each action in predicate form. We then use Planning Domain Definition Language (PDDL) \cite{pddl} to define each action and unite these definitions into a domain description. For example, if we take our task of picking up a button and inserting it into a slot, the states would be as described in figure \ref{predicatesevolutions}.
-
 \begin{figure}[ht]
-    \subfloat[Initial State]{
-        \begin{tabular}{c}
-            Predicates: \\
-            \hline
-            IsSlotEmpty(slot) \\
-            IsGripperEmpty(gripper) \\
-            ... \\
-        \end{tabular}
-    }
-
-    \subfloat[Intermediate State]{
-        \begin{tabular}{c}
-            Predicates: \\
-            \hline
-            IsSlotEmpty(slot) \\
-            IsGrasped(button, gripper) \\
-            ...\\
-        \end{tabular}
-    }
-
-    \subfloat[Final State]{
-        \begin{tabular}{c}
-            Predicates: \\
-            \hline
-            IsButtonInSlot(button, slot) \\
-            IsGripperEmpty(gripper) \\
-            ...\
-        \end{tabular}
-    }
-
-    \caption{Evolution of the state, expressed as a list of predicates, during the pick-up and insertion of a button into a slot.}
+    \includegraphics[width=\textwidth]{actions_states.png}
+    \caption{Evolution of the state and actions for the example task of picking up a button and inserting it into a slot.}
     \label{predicatesevolutions}
 \end{figure}
 
-The domain for this task would then contain a list of the possible predicates, and two actions: the evolution from the initial state to the intermediate state (picking up the button) and the evolution from the intermediate state to the final state (inserting it into the slot), shown in figure \ref{pddlactions}.
+The experiments with the robot consist of two phases: \emph{teaching mode} or \emph{evaluation mode}.
+
+In \emph{teaching mode}, we show the robot how to perform actions through kinesthetic demostrations. During these demostrations, the robot, moved by a human operator, will modify the environment and thus change the scene. The actions performed during this phase, can be divided into move actions and interactions, which in our case are limited to opening and closing the gripper. Move actions reference a destination position, which we save relative to a manually defined reference object. For example, if we want to pick up a button, we set the reference to the button itself: this way when we require repeating the same actions but the button is in a different position, we can compute the new position by changing the initial reference pose, so as to not lose in generality.
 
 \begin{figure}
-    \subfloat[action_0 (Picking up a button)]{
-        \begin{tabular}{c|c|c}
-            Parameters & Preconditions & Effects \\
-            \hline
-            gripper & IsGripperEmpty(gripper) & !IsGripperEmpty(gripper) \\
-            button & \space & IsGrasped(button) \\
-        \end{tabular}
-    }
-    \subfloat[action_1 (Inserting a button into a slot)]{
-        \begin{tabular}{c|c|c}
-            Parameters & Preconditions & Effects \\
-            \hline
-            button & IsGrasped(button) & !IsGrasped(button) \\
-            slot & IsSlotEmpty(slot) & !IsSlotEmpty(slot) \\
-            gripper & \space & IsGripperEmpty(gripper) \\
-            \space & \space & IsButtonInSlot(button, slot) \\
-        \end{tabular}
-    }
-
-    \caption{Actions with their parameters, preconditions and effects as saved by PDDL for our task.}
-    \label{pddlactions}
+    \includegraphics[width=0.9\textwidth]{teaching_mode.png}
+    \caption{Schematic representation of phases and data flow in teaching mode.}
 \end{figure}
 
-We then define an init and goal for our planner, which are the state we are starting from and the final state we want to achieve, compact both of these into the "problem definition". Inputting the definition and the domain into a PDDL planner then gives us the set of actions we need to perform, (in this case action_0 and the action_1), which we can use to then build our behaviour tree.
+By examining the differences between the state before and after the demonstration, we can use Planning Domain Definition Language (PDDL) \cite{pddl} to generate a set of \emph{preconditions} and \emph{effects} expressed in predicate form, and combine them with the low level robotic actions to obtain a \emph{skill}. For our example case shown in figure \ref{predicatesevolutions}, we define two \emph{skills} as shown below. The \emph{domain} for this task then consists of the set of all defined predicates and actions.
 
-The main modification applied to the previous code in this approach, apart from changing the predicates to suit our needs, is the shift from a continuously evaluated model to a discretely evaluated model. The reason for this change is the susceptibility of the vision model to false positives for previously unidentified objects. More information on this can be found in section \ref{false_positives_issue}, but essentially in this manner we ensure that the state is evaluated only when the gripper and eventual human operator are outside of the camera's field of view.
+In \emph{evaluation mode} we specify what is known as the \emph{problem}. This consists of a combination of the semantic meaning of the scene's initial state (\emph{init}) and the final state we would like to achieve (\emph{goal}). By providing a PDDL planner with a \emph{domain} and \emph{problem}, it will compute the ordered set of actions necessary to pass from the initial to the final states described in the problem.
+
+A behavior tree is then built by combining the individual trees for each action, in the order defined by the planner. These trees, united with our prior modelling of the task in the form of the domain and the problem, form a \emph{knowledge base} that is fundamental for the task's execution. Tthe robot's actions are then performed by evaluating the tree.
+
+\begin{minipage}[t]{0.5\textwidth}
+    \begin{lstlisting}[language=PDDL]
+(:action action_0
+    :parameters(
+        ?Gripper1 - Gripper
+        ?SmallButton1 - SmallButton
+    );end_of_parameter
+    :precondition (and
+        (is_gripper_empty ?Gripper1)
+    );end_of_precondition
+    :effect (and
+        (is_grasped ?SmallButton1 ?Gripper1)
+        (not (is_gripper_empty ?Gripper1))
+        (increase (total-cost) 50)
+    );end_of_effect
+);end_of_action
+    \end{lstlisting}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.5\textwidth}
+    \begin{lstlisting}[language=PDDL]
+(:action action_1
+    :parameters(
+        ?SmallButton1 - SmallButton
+        ?Gripper1 - Gripper
+        ?Slot1 - Slot
+    );end_of_parameter
+    :precondition (and
+        (is_grasped ?SmallButton1 ?Gripper1)
+        (is_slot_empty ?Slot1)
+    );end_of_precondition
+    :effect (and
+        (is_gripper_empty ?Gripper1)
+        (is_button_in_slot ?SmallButton1 ?Slot1)
+        (not (is_grasped ?SmallButton1 ?Gripper1))
+        (not (is_slot_empty ?Slot1))
+        (increase (total-cost) 50)
+    );end_of_effect
+);end_of_action 
+    \end{lstlisting}
+\end{minipage}
+
+\begin{wrapfigure}{r}{0.4\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{action_bt.png}
+    \caption{Simplified representation of a behavior tree for an action with N modes.}
+\end{wrapfigure}
+
+\begin{figure}[ht]
+    \includegraphics[width=0.9\textwidth]{evaluation_mode.png}
+    \caption{Data flow and construction of the behavior tree during evaluation mode.}    
+\end{figure}
+
+Apart from the introduction of the new vision system and predicates, the other main modification applied to the pre-existing code was the decision to evaluate the semantic state only at specific instants. Therefore instead of constantly computing the state of the scene, we evaluate it only at the beginning and at the end of each action. The reason for this is the susceptibility of the vision model to false positives for untrained objects. More information on this can be found in section \ref{false_positives_issue}, but essentially in this manner we ensure that the state is evaluated only when the gripper and human operator are outside of the camera's field of view.
+
+Finally, we tested this setup by having it perform the simple assembly task of picking up a button in various positions and inserting it into various different slots on the two button boards.
+
+\begin{figure}[ht]
+    \includegraphics[width=0.8\textwidth]{execute_tree.png}
+    \caption{Architecture during execution of the behavior tree.}
+\end{figure}
 

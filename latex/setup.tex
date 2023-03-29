@@ -50,6 +50,50 @@
 \usepackage{calc}
 \usepackage[square, numbers, sort&compress]{natbib}
 \usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{listings}
+\lstdefinelanguage{PDDL}
+{
+  sensitive=false,    % not case-sensitive
+  morecomment=[l]{;}, % line comment
+  alsoletter={:,-},   % consider extra characters
+  morekeywords={
+    define,domain,problem,not,and,or,when,forall,exists,either,
+    :domain,:requirements,:types,:objects,:constants,
+    :predicates,:action,:parameters,:precondition,:effect,
+    :fluents,:primary-effect,:side-effect,:init,:goal,
+    :strips,:adl,:equality,:typing,:conditional-effects,
+    :negative-preconditions,:disjunctive-preconditions,
+    :existential-preconditions,:universal-preconditions,:quantified-preconditions,
+    :functions,assign,increase,decrease,scale-up,scale-down,
+    :metric,minimize,maximize,
+    :durative-actions,:duration-inequalities,:continuous-effects,
+    :durative-action,:duration,:condition
+  }
+}
+\usepackage{xcolor}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\scriptsize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                                 
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
 \bibliographystyle{abbrvnat}
 \newlength\shlength
 \newcommand\longvec[2][0]{\ThisStyle{\setlength\shlength{#1\LMpt}%

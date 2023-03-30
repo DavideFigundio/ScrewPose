@@ -1,10 +1,25 @@
 \chapter{Conclusions}
 
-In conclusion, we have developed a method that allows us to easily and quickly generate a dataset for training a neural network to perform a pose estimation task. Our approach results in good performance for a set of objects of interest in a specific environment, and does not require expensive or complicated instrumentation. We also developed a reliable approach for semantic meaning extraction used in a specific assembly task. Finally, we succesfully applied our method to a real-world scenario, and used our estimations to drive the movement of a robotic manipulator.
+In the field of robotics, and automation in general, the interactions between the autonomous system, or robot, and the environment, are of fundamental importance. Perception in particular requires the system to have a certain number of sensors that provide it with data on the environment, which it then processes to obtain the information necessary to perform its purposed task.
 
-Possible future developments may include:
+RGB Color cameras, while being relatively cheap and easily sourceable sensors, introduce a series of difficulties and complications that limit their applicability in real-time control applications. However, neural networks, and convolutional neural networks in particular, are perfectly suited to cover these issues.
+
+Due to this,  rapid developments in the fields of object identification and pose estimation techniques have occurred and, there has been an increased interest in applying these techniques to tasks for industrial and collaborative robotics. However, due to the challenges introduced by machine learning approaches, the viability and performance of these methods in a real world application remained to be seen.
+
+To tackle these issues, we began by developing a dataset generation algorithm to simplify the data acquisition phase. While unfortunately a more general approach involving fully rendering the training images failed to produce satisfactory results, a more specific technique involving realistically placing objects inside of a photograph proved to be effective. These generated datasets resulted in excellent performance, that did not decline in a noticeable manner when tested in a real-world environment.
+
+We then developed a method to extract the high-level semantic state of a scene, starting from the results of an inference performed by the trained pose estimation network. We applied a simple thresholding technique, while devising methods to manage various issues, such as the occlusion of identifying features and conflicts resulting from higher values of the distance threshold. The performance of the resulting method was excellent, though it is highly dependant on the performance of the underlying network.
+
+Finally, we applied the complete network and semantics method to a real-world application. By "teaching" a robotic manipulator how to perform basic actions using kinesthetic demonstrations, the overall system was able to plan and complete simple assembly tasks. However, these experiments highlighted how the system struggled with smaller objects, with consistent small errors in rotation estimations that detracted from its overall performance.
+
+In conclusion, object detection and pose estimation approaches have remarkable performance in robotics applications, but may be insufficient in tasks that require high precision and reliability, or tasks involving small objects, or objects that are difficult to identify in other ways.
+
+Furthermore, the black-box nature of neural networks means that the performance of our own approach and datasets may be compromised when applied to a radically different environment than the one used for dataset generation and training, thus requiring a new dataset and training for the new environment. This is the main disadvantage of our approach, that it is specific on one environment.
+
+In the future, it could be possible to progress and improve upon our work. We considered for example:
 \begin{itemize}
-    \item Comparing the performance of a network trained on one of our generated datasets with a network trained on real-world labelled data.
+    \item Comparing the performance of a network trained on one of our generated datasets with a network trained on real-world labelled data, with the same objects and in the same environment.
     \item Verifying the possibility of avoiding false positives with the model by training it to ignore objects.
-    \item If future pose estimation networks increase performance in a significant manner, verifying if they obtain the accuracy required for high precision robotics applications.
+    \item When generating a dataset, verifying whether including multiple different environments in the background improves generalisiation, or whether this is unnecessary.
+    \item If future pose estimation approaches increase performance in a significant manner, verifying whether they obtain the accuracy required for high precision robotics applications.
 \end{itemize}
